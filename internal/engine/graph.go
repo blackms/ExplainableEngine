@@ -223,7 +223,9 @@ func addComponents(dag *DAG, parentID string, components []models.Component) err
 		}
 
 		nodeType := models.NodeTypeInput
-		if len(comp.Components) > 0 {
+		if comp.Missing {
+			nodeType = models.NodeTypeMissing
+		} else if len(comp.Components) > 0 {
 			nodeType = models.NodeTypeComputed
 		}
 

@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/blackms/ExplainableEngine/internal/models"
@@ -50,45 +49,37 @@ func (o *Orchestrator) Explain(req models.ExplainRequest) (*models.ExplainRespon
 		return nil, fmt.Errorf("propagating confidence: %w", err)
 	}
 
-	// 5. Build breakdown items from contributions.
+	// 5. Analyze missing data.
+	missingResult, err := AnalyzeMissingData(dag, rootNodeID, opts.MissingThreshold)
+	if err != nil {
+		return nil, fmt.Errorf("analyzing missing data: %w", err)
+	}
+
+	// 6. Build breakdown items from contributions.
 	breakdown := contributionsToBreakdownItems(contributions)
 
-	// 6. Compute top drivers.
-	var topDrivers []DriverCandidate
-	collectDriverCandidates(contributions, confResult.NodeConfidences, &topDrivers)
-	sort.Slice(topDrivers, func(i, j int) bool {
-		return topDrivers[i].impact > topDrivers[j].impact
-	})
-
-	maxDrivers := opts.MaxDrivers
-	if maxDrivers > len(topDrivers) {
-		maxDrivers = len(topDrivers)
-	}
-	driverItems := make([]models.DriverItem, maxDrivers)
-	for i := 0; i < maxDrivers; i++ {
-		driverItems[i] = models.DriverItem{
-			Name:   topDrivers[i].name,
-			Impact: topDrivers[i].impact,
-			Rank:   i + 1,
-		}
+	// 7. Compute top drivers using the dedicated analyzer.
+	driverItems := AnalyzeDrivers(contributions, confResult.NodeConfidences, opts.MaxDrivers)
+	if driverItems == nil {
+		driverItems = []models.DriverItem{}
 	}
 
-	// 7. Build graph response if requested.
+	// 8. Build graph response if requested.
 	var graphResp *models.GraphResponse
 	if opts.IncludeGraph {
 		graphResp = buildGraphResponse(dag)
 	}
 
-	// 8. Build confidence detail.
+	// 9. Build confidence detail.
 	confDetail := &models.ConfidenceDetail{
 		Overall: confResult.OverallConfidence,
 		PerNode: confResult.NodeConfidences,
 	}
 
-	// 9. Compute deterministic hash (of breakdown + confidence, excluding id/timestamp).
+	// 10. Compute deterministic hash (of breakdown + confidence, excluding id/timestamp).
 	hashInput := struct {
-		Breakdown  []models.BreakdownItem `json:"breakdown"`
-		Confidence *models.ConfidenceDetail `json:"confidence"`
+		Breakdown  []models.BreakdownItem   `json:"breakdown"`
+		Confidence *models.ConfidenceDetail  `json:"confidence"`
 	}{
 		Breakdown:  breakdown,
 		Confidence: confDetail,
@@ -96,7 +87,7 @@ func (o *Orchestrator) Explain(req models.ExplainRequest) (*models.ExplainRespon
 	hashBytes, _ := json.Marshal(hashInput)
 	hash := fmt.Sprintf("%x", sha256.Sum256(hashBytes))
 
-	// 10. Assemble response.
+	// 11. Assemble response.
 	return &models.ExplainResponse{
 		ID:               newUUID(),
 		Target:           req.Target,
@@ -104,6 +95,7 @@ func (o *Orchestrator) Explain(req models.ExplainRequest) (*models.ExplainRespon
 		Confidence:       confResult.OverallConfidence,
 		Breakdown:        breakdown,
 		TopDrivers:       driverItems,
+		MissingImpact:    missingResult.TotalImpact,
 		Graph:            graphResp,
 		DependencyTree:   depTree,
 		ConfidenceDetail: confDetail,
@@ -114,27 +106,6 @@ func (o *Orchestrator) Explain(req models.ExplainRequest) (*models.ExplainRespon
 			ComputationType:   "weighted_sum",
 		},
 	}, nil
-}
-
-// DriverCandidate holds intermediate driver data for sorting.
-type DriverCandidate struct {
-	name   string
-	impact float64
-}
-
-func collectDriverCandidates(contributions []models.Contribution, confidences map[string]float64, out *[]DriverCandidate) {
-	for _, c := range contributions {
-		conf := confidences[c.NodeID]
-		impact := abs(c.AbsoluteContribution) * conf
-		*out = append(*out, DriverCandidate{name: c.Label, impact: impact})
-	}
-}
-
-func abs(v float64) float64 {
-	if v < 0 {
-		return -v
-	}
-	return v
 }
 
 func contributionsToBreakdownItems(contributions []models.Contribution) []models.BreakdownItem {
