@@ -1,23 +1,25 @@
-.PHONY: install test lint format run clean
+.PHONY: build test lint run clean fmt
 
-install:
-	pip install -e ".[dev]"
+build:
+	go build -o bin/server ./cmd/server
 
 test:
-	python -m pytest --cov=src/explainable_engine --cov-report=term-missing
+	go test ./... -v -count=1
+
+test-cover:
+	go test ./... -coverprofile=coverage.out -covermode=atomic
+	go tool cover -func=coverage.out
 
 lint:
-	ruff check src/ tests/
-	ruff format --check src/ tests/
+	go vet ./...
+	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run; fi
 
-format:
-	ruff check --fix src/ tests/
-	ruff format src/ tests/
+fmt:
+	gofmt -w .
+	goimports -w . 2>/dev/null || true
 
 run:
-	uvicorn src.explainable_engine.main:app --reload --host 0.0.0.0 --port 8000
+	go run ./cmd/server
 
 clean:
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
-	rm -rf .coverage htmlcov/
+	rm -rf bin/ coverage.out *.db
