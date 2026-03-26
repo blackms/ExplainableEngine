@@ -49,10 +49,22 @@ export function useWhatIf(id: string | undefined) {
   });
 }
 
-export function useExplanationList(opts?: ListOptions) {
+export function useExplanationList(
+  opts?: ListOptions,
+  queryOpts?: { refetchInterval?: number | false }
+) {
   return useQuery({
     queryKey: ['explanations', opts],
     queryFn: () => api.listExplanations(opts),
+    refetchInterval: queryOpts?.refetchInterval,
+  });
+}
+
+export function useStats() {
+  return useQuery({
+    queryKey: ['stats'],
+    queryFn: () => api.stats(),
+    refetchInterval: 30000,
   });
 }
 

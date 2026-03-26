@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useExplanationList } from '@/lib/api/hooks';
 import { FilterPanel } from '@/components/audit/FilterPanel';
 import { ExplanationTable } from '@/components/audit/ExplanationTable';
+import { ExportButton } from '@/components/audit/ExportButton';
 import { PaginationControls } from '@/components/audit/PaginationControls';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ListOptions } from '@/lib/api/types';
@@ -52,7 +53,12 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Audit Trail</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Audit Trail</h1>
+        {data?.items && data.items.length > 0 && (
+          <ExportButton items={data.items} />
+        )}
+      </div>
 
       <FilterPanel
         filters={filters}

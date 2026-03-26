@@ -5,6 +5,7 @@ import { DriverRanking } from '@/components/explanation/DriverRanking';
 import { ConfidencePanel } from '@/components/explanation/ConfidencePanel';
 import { NarrativeViewer } from '@/components/explanation/NarrativeViewer';
 import { SensitivityQuickView } from '@/components/explanation/SensitivityQuickView';
+import { ExportPanel } from '@/components/explanation/ExportPanel';
 
 export default async function ExplanationPage({
   params,
@@ -38,14 +39,17 @@ export default async function ExplanationPage({
       {/* Header with View Full Graph link */}
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold sr-only">Explanation Detail</h1>
-        {explanation.graph && (
-          <Link
-            href={`/explain/${id}/graph`}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors"
-          >
-            View Full Graph
-          </Link>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          <ExportPanel explanation={explanation} />
+          {explanation.graph && (
+            <Link
+              href={`/explain/${id}/graph`}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors"
+            >
+              View Full Graph
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Row 1: SummaryCard (full width) */}
