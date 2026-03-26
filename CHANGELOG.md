@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-03-26
+
+### Added
+
+- **Missing Data Analyzer**: Detect MISSING nodes in the causal graph and compute their impact as ratio of missing weights to total weights, with configurable threshold warnings ([#48](https://github.com/blackms/ExplainableEngine/pull/48))
+- **Driver Analyzer**: Dedicated module for ranking top drivers by normalized impact score (|contribution| x confidence), with multi-level flattening and deterministic tie-breaking ([#48](https://github.com/blackms/ExplainableEngine/pull/48))
+- **Component.Missing flag**: Optional `missing` boolean on request components to mark data as unavailable ([#48](https://github.com/blackms/ExplainableEngine/pull/48))
+- **ExplainOptions.MissingThreshold**: Configurable threshold (default 0.2) for missing data warnings ([#48](https://github.com/blackms/ExplainableEngine/pull/48))
+- **Sprint 2 Integration Tests**: 7 new tests covering missing data, driver normalization, and backward compatibility ([#48](https://github.com/blackms/ExplainableEngine/pull/48))
+
+### Changed
+
+- **TopDrivers normalization**: Driver impacts are now normalized to [0, 1] range where the top driver has impact = 1.0 (previously raw absolute values) ([#48](https://github.com/blackms/ExplainableEngine/pull/48))
+- **Orchestrator v2**: Pipeline extended with missing data analysis and dedicated driver analysis steps; removed inline driver logic ([#48](https://github.com/blackms/ExplainableEngine/pull/48))
+
+### User Stories Completed
+
+- US-005: Missing data impact
+- US-007: Critical drivers
+
 ## [0.1.0] - 2026-03-26
 
 ### Added
@@ -30,4 +50,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - US-008: Submit explanation request (POST /explain)
 - US-009: Retrieve explanation (GET /explain/{id})
 
+[0.2.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.2.0
 [0.1.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.1.0
