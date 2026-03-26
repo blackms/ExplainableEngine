@@ -1,0 +1,80 @@
+# NOTE: Workload Identity Federation setup required before this workflow will work.
+# Create the pool and provider with:
+#   gcloud iam workload-identity-pools create github-pool \
+#     --location=global \
+#     --display-name="GitHub Actions Pool"
+#   gcloud iam workload-identity-pools providers create-oidc github-provider \
+#     --location=global \
+#     --workload-identity-pool=github-pool \
+#     --display-name="GitHub Provider" \
+#     --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+#     --issuer-uri="https://token.actions.githubusercontent.com"
+#   gcloud iam service-accounts add-iam-policy-binding \
+#     cloud-build-sa@explainable-engine-prod.iam.gserviceaccount.com \
+#     --role=roles/iam.workloadIdentityUser \
+#     --member="principalSet://iam.googleapis.com/projects/explainable-engine-prod/locations/global/workloadIdentityPools/github-pool/attribute.repository/<OWNER>/<REPO>"
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  PROJECT_ID: explainable-engine-prod
+  REGION: europe-west1
+  REPO: explainable-engine
+  SERVICE: explainable-engine
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - run: go test ./... -v -count=1
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # For Workload Identity Federation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'cloud-build-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build image
+        run: |
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/server:${{ github.sha }} .
+          docker tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/server:${{ github.sha }} \
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/server:latest
+
+      - name: Push image
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/server:${{ github.sha }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/server:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run services update ${{ env.SERVICE }} \
+            --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/server:${{ github.sha }} \
+            --region=${{ env.REGION }}
+
+      - name: Health check
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE }} --region=${{ env.REGION }} --format='value(status.url)')
+          curl -sf "${URL}/health" || exit 1
