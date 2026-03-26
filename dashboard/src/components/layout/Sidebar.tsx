@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   ShieldCheck,
+  TrendingUp,
   User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const navigationGroups: NavGroup[] = [
     label: 'Main',
     items: [
       { name: 'Dashboard', href: '/', icon: Home },
+      { name: 'AIP Sentiment', href: '/aip', icon: TrendingUp },
       { name: 'Explanations', href: '/audit', icon: Layers },
     ],
   },
