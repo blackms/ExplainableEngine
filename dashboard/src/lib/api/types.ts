@@ -166,3 +166,46 @@ export interface SensitivityResult {
   component_diffs: ComponentDiff[];
   sensitivity_ranking: SensitivityRanking[];
 }
+
+// LLM types
+
+export interface LLMNarrativeRequest {
+  level: 'basic' | 'advanced' | 'executive';
+  lang: 'en' | 'it';
+}
+
+export interface LLMNarrativeResponse {
+  narrative: string;
+  source: 'llm' | 'template';
+  model: string;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface AskRequest {
+  question: string;
+  history?: ChatMessage[];
+}
+
+export interface AskResponse {
+  answer: string;
+  model: string;
+}
+
+export interface SummaryRequest {
+  audience: 'board' | 'technical' | 'client';
+  lang: 'en' | 'it';
+}
+
+export interface SummaryResponse {
+  title: string;
+  summary: string;
+  key_findings: string[];
+  risks: string[];
+  recommendations: string[];
+  audience: string;
+  language: string;
+}

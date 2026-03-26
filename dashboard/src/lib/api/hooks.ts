@@ -2,7 +2,14 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { ExplainRequest, ListOptions, Modification } from './types';
+import type {
+  AskRequest,
+  ExplainRequest,
+  LLMNarrativeRequest,
+  ListOptions,
+  Modification,
+  SummaryRequest,
+} from './types';
 
 export function useExplanation(id: string | undefined) {
   return useQuery({
@@ -73,5 +80,23 @@ export function useHealth() {
     queryKey: ['health'],
     queryFn: () => api.health(),
     refetchInterval: 30_000,
+  });
+}
+
+export function useLLMNarrative(id: string | undefined) {
+  return useMutation({
+    mutationFn: (req: LLMNarrativeRequest) => api.generateLLMNarrative(id!, req),
+  });
+}
+
+export function useAskQuestion(id: string | undefined) {
+  return useMutation({
+    mutationFn: (req: AskRequest) => api.askQuestion(id!, req),
+  });
+}
+
+export function useGenerateSummary(id: string | undefined) {
+  return useMutation({
+    mutationFn: (req: SummaryRequest) => api.generateSummary(id!, req),
   });
 }

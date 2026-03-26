@@ -8,12 +8,18 @@ import (
 	"time"
 
 	"github.com/blackms/ExplainableEngine/internal/engine"
+	"github.com/blackms/ExplainableEngine/internal/llm"
 	"github.com/blackms/ExplainableEngine/internal/storage"
 	"github.com/google/uuid"
 )
 
 // NewRouter creates the HTTP router with all routes and middleware.
-func NewRouter(store storage.ExplanationStore, orch engine.OrchestratorInterface) http.Handler {
+func NewRouter(store storage.ExplanationStore, orch engine.OrchestratorInterface, opts ...RouterOption) http.Handler {
+	cfg := routerConfig{}
+	for _, o := range opts {
+		o(&cfg)
+	}
+
 	handler := &ExplainHandler{orchestrator: orch, store: store}
 	graphHandler := &GraphHandler{store: store}
 	narrativeHandler := &NarrativeHandler{store: store}
@@ -30,7 +36,32 @@ func NewRouter(store storage.ExplanationStore, orch engine.OrchestratorInterface
 	whatIfHandler := &WhatIfHandler{store: store, orchestrator: orch}
 	mux.HandleFunc("POST /api/v1/explain/{id}/what-if", whatIfHandler.Analyze)
 
+	// LLM-powered endpoints.
+	llmSvc := cfg.llmService
+	if llmSvc == nil {
+		llmSvc = llm.NewFallbackService()
+	}
+	llmHandler := &LLMHandler{store: store, llmSvc: llmSvc}
+	mux.HandleFunc("POST /api/v1/explain/{id}/narrative/llm", llmHandler.GenerateNarrative)
+	mux.HandleFunc("POST /api/v1/explain/{id}/ask", llmHandler.AskQuestion)
+	mux.HandleFunc("POST /api/v1/explain/{id}/summary", llmHandler.GenerateSummary)
+
 	return requestIDMiddleware(timingMiddleware(recoveryMiddleware(mux)))
+}
+
+// routerConfig holds optional configuration for the router.
+type routerConfig struct {
+	llmService llm.Service
+}
+
+// RouterOption configures the router.
+type RouterOption func(*routerConfig)
+
+// WithLLMService sets the LLM service for the router.
+func WithLLMService(svc llm.Service) RouterOption {
+	return func(cfg *routerConfig) {
+		cfg.llmService = svc
+	}
 }
 
 var startTime = time.Now()
