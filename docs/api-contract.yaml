@@ -1,0 +1,767 @@
+openapi: 3.1.0
+info:
+  title: Explainable Engine API
+  version: 1.0.0
+  description: |
+    Explainable Engine transforms any numerical or decisional output into an
+    explicit, queryable, verifiable causal chain.
+
+    ## Determinism Guarantee
+
+    The engine is fully deterministic: submitting the same `ExplainRequest`
+    payload will always produce the same `ExplainResponse` (identical
+    `deterministic_hash`). Clients may use the hash to verify reproducibility
+    or cache results safely.
+
+    ## Content Type
+
+    All requests and responses use `application/json` exclusively.
+
+    ## Request Tracking
+
+    Every response includes an `X-Request-Id` header. Clients may also supply
+    their own `X-Request-Id` on the request; the server will echo it back.
+
+    ## Versioning
+
+    The API is versioned via the URL path prefix `/api/v1`.
+  contact:
+    name: Explainable Engine Team
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+  - url: https://api.explainableengine.io
+    description: Production
+
+tags:
+  - name: explain
+    description: Explanation lifecycle endpoints
+  - name: health
+    description: Operational health
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+  /api/v1/explain:
+    post:
+      operationId: createExplanation
+      tags: [explain]
+      summary: Submit an explanation request
+      description: |
+        Accepts a target value together with its contributing components and
+        returns a fully decomposed, verifiable causal breakdown.
+
+        The response is deterministic: identical payloads always yield the
+        same output and the same `deterministic_hash`.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExplainRequest"
+            example:
+              target: market_regime_score
+              value: 0.72
+              components:
+                - name: trend_strength
+                  value: 0.8
+                  weight: 0.4
+                  confidence: 0.9
+                - name: volatility
+                  value: 0.5
+                  weight: 0.3
+                  confidence: 0.7
+                - name: momentum
+                  value: 0.6
+                  weight: 0.3
+                  confidence: 0.85
+              options:
+                include_graph: true
+                include_drivers: true
+                max_depth: 3
+      responses:
+        "201":
+          description: Explanation created successfully.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExplainResponse"
+              example:
+                id: expl_abc123
+                target: market_regime_score
+                final_value: 0.72
+                confidence: 0.828
+                breakdown:
+                  - name: trend_strength
+                    value: 0.8
+                    weight: 0.4
+                    contribution: 0.32
+                    contribution_pct: 44.4
+                    confidence: 0.9
+                  - name: volatility
+                    value: 0.5
+                    weight: 0.3
+                    contribution: 0.15
+                    contribution_pct: 20.8
+                    confidence: 0.7
+                  - name: momentum
+                    value: 0.6
+                    weight: 0.3
+                    contribution: 0.18
+                    contribution_pct: 25.0
+                    confidence: 0.85
+                top_drivers:
+                  - name: trend_strength
+                    impact: 0.44
+                    rank: 1
+                  - name: momentum
+                    impact: 0.25
+                    rank: 2
+                  - name: volatility
+                    impact: 0.208
+                    rank: 3
+                missing_impact: 0.0
+                graph:
+                  nodes:
+                    - id: market_regime_score
+                      label: market_regime_score
+                      type: target
+                      value: 0.72
+                    - id: trend_strength
+                      label: trend_strength
+                      type: component
+                      value: 0.8
+                    - id: volatility
+                      label: volatility
+                      type: component
+                      value: 0.5
+                    - id: momentum
+                      label: momentum
+                      type: component
+                      value: 0.6
+                  edges:
+                    - source: trend_strength
+                      target: market_regime_score
+                      weight: 0.4
+                      label: "w=0.4"
+                    - source: volatility
+                      target: market_regime_score
+                      weight: 0.3
+                      label: "w=0.3"
+                    - source: momentum
+                      target: market_regime_score
+                      weight: 0.3
+                      label: "w=0.3"
+                metadata:
+                  version: "1.0.0"
+                  created_at: "2024-01-01T00:00:00Z"
+                  deterministic_hash: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                  computation_type: additive
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/explain/{explanation_id}:
+    get:
+      operationId: getExplanation
+      tags: [explain]
+      summary: Retrieve a previously computed explanation
+      description: |
+        Returns a cached explanation by its unique identifier. Because
+        explanations are deterministic and immutable, this endpoint supports
+        aggressive caching via `Cache-Control` and `ETag` headers.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ExplanationId"
+        - name: If-None-Match
+          in: header
+          required: false
+          description: |
+            Standard conditional request header. Supply the `ETag` value from
+            a previous response; the server returns `304 Not Modified` if the
+            explanation has not changed.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Explanation retrieved successfully.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
+            Cache-Control:
+              description: Caching directive. Explanations are immutable so this is long-lived.
+              schema:
+                type: string
+              example: "public, max-age=86400, immutable"
+            ETag:
+              description: Entity tag derived from the deterministic hash.
+              schema:
+                type: string
+              example: '"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExplainResponse"
+        "304":
+          description: Not modified. The explanation matches the supplied `If-None-Match` ETag.
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/health:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: |
+        Returns the operational status of the service and its dependencies.
+        Intended for load-balancer probes and monitoring systems.
+      responses:
+        "200":
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+                version: "1.0.0"
+                uptime_seconds: 3600
+                timestamp: "2024-01-01T01:00:00Z"
+        "503":
+          description: Service is unhealthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: degraded
+                version: "1.0.0"
+                uptime_seconds: 3600
+                timestamp: "2024-01-01T01:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Components
+# ---------------------------------------------------------------------------
+components:
+
+  # ---- Parameters ---------------------------------------------------------
+  parameters:
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: |
+        Optional client-supplied request identifier. If provided the server
+        echoes it back; otherwise the server generates one.
+      schema:
+        type: string
+        format: uuid
+        examples:
+          - "550e8400-e29b-41d4-a716-446655440000"
+
+    ExplanationId:
+      name: explanation_id
+      in: path
+      required: true
+      description: Unique explanation identifier (prefixed with `expl_`).
+      schema:
+        type: string
+        pattern: "^expl_[a-zA-Z0-9]{6,64}$"
+        examples:
+          - expl_abc123
+
+    PageCursor:
+      name: cursor
+      in: query
+      required: false
+      description: |
+        Opaque cursor for keyset pagination. Omit for the first page.
+        Returned in `PaginationMeta.next_cursor` when more results exist.
+      schema:
+        type: string
+
+    PageLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  # ---- Headers ------------------------------------------------------------
+  headers:
+    X-Request-Id:
+      description: Unique identifier for this request/response pair.
+      schema:
+        type: string
+        format: uuid
+
+  # ---- Reusable Responses -------------------------------------------------
+  responses:
+    BadRequest:
+      description: The request body is malformed or missing required fields.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/X-Request-Id"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: BAD_REQUEST
+              message: "Request body is not valid JSON."
+              details: []
+              request_id: "550e8400-e29b-41d4-a716-446655440000"
+
+    NotFound:
+      description: The requested resource does not exist.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/X-Request-Id"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: NOT_FOUND
+              message: "Explanation 'expl_abc123' not found."
+              details: []
+              request_id: "550e8400-e29b-41d4-a716-446655440000"
+
+    UnprocessableEntity:
+      description: |
+        The request body is syntactically valid JSON but fails semantic
+        validation (e.g., weights do not sum to 1.0, values out of range).
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/X-Request-Id"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: "Semantic validation failed."
+              details:
+                - field: "components[0].weight"
+                  issue: "Component weights must sum to 1.0; got 1.1."
+              request_id: "550e8400-e29b-41d4-a716-446655440000"
+
+    InternalServerError:
+      description: An unexpected server-side error occurred.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/X-Request-Id"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: "An unexpected error occurred. Please retry or contact support."
+              details: []
+              request_id: "550e8400-e29b-41d4-a716-446655440000"
+
+  # ---- Schemas ------------------------------------------------------------
+  schemas:
+
+    # -- Request / Options --------------------------------------------------
+    ExplainRequest:
+      type: object
+      required: [target, value, components]
+      description: Payload for submitting an explanation request.
+      properties:
+        target:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Human-readable name of the target metric being explained.
+        value:
+          type: number
+          description: The final computed value of the target metric.
+        components:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          description: |
+            Ordered list of contributing components. Each component may itself
+            contain nested sub-components to represent a causal tree.
+          items:
+            $ref: "#/components/schemas/Component"
+        options:
+          $ref: "#/components/schemas/ExplainOptions"
+
+    ExplainOptions:
+      type: object
+      description: Optional flags controlling the explanation output.
+      properties:
+        include_graph:
+          type: boolean
+          default: false
+          description: When `true`, the response includes a `graph` object with nodes and edges.
+        include_drivers:
+          type: boolean
+          default: true
+          description: When `true`, the response includes the `top_drivers` ranking.
+        max_depth:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 3
+          description: |
+            Maximum depth to traverse when expanding nested sub-components.
+            A value of 1 means only direct components are included.
+
+    # -- Core Domain Models -------------------------------------------------
+    Component:
+      type: object
+      required: [name, value, weight]
+      description: |
+        A single contributing factor. Components may contain recursive
+        sub-components, forming a causal tree up to `max_depth` levels.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Unique name of this component within its parent scope.
+        value:
+          type: number
+          description: The raw value of this component.
+        weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: |
+            Relative weight of this component in the parent aggregation.
+            Weights among sibling components should sum to 1.0.
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 1.0
+          description: |
+            Confidence score for this component's value (0 = no confidence,
+            1 = full confidence). Defaults to 1.0 if omitted.
+        sub_components:
+          type: array
+          description: |
+            Optional nested components that explain how this component's
+            value was derived. Enables recursive causal decomposition.
+          items:
+            $ref: "#/components/schemas/Component"
+
+    # -- Response Models ----------------------------------------------------
+    ExplainResponse:
+      type: object
+      required: [id, target, final_value, confidence, breakdown, missing_impact, metadata]
+      description: A complete, verifiable explanation of a target value.
+      properties:
+        id:
+          type: string
+          pattern: "^expl_[a-zA-Z0-9]{6,64}$"
+          description: Unique, stable identifier for this explanation.
+        target:
+          type: string
+          description: The target metric name (echoed from the request).
+        final_value:
+          type: number
+          description: The final computed value (echoed from the request).
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: |
+            Aggregated confidence score across all components, computed as
+            the weighted average of individual component confidences.
+        breakdown:
+          type: array
+          description: Per-component decomposition of the target value.
+          items:
+            $ref: "#/components/schemas/BreakdownItem"
+        top_drivers:
+          type: array
+          description: |
+            Components ranked by impact (descending). Present only when
+            `options.include_drivers` is `true`.
+          items:
+            $ref: "#/components/schemas/DriverItem"
+        missing_impact:
+          type: number
+          minimum: 0
+          description: |
+            The portion of the target value not accounted for by the
+            supplied components. Zero when components fully explain the
+            target.
+        graph:
+          description: |
+            Causal graph representation. Present only when
+            `options.include_graph` is `true`.
+          oneOf:
+            - $ref: "#/components/schemas/GraphResponse"
+            - type: "null"
+        metadata:
+          $ref: "#/components/schemas/ExplainMetadata"
+
+    BreakdownItem:
+      type: object
+      required: [name, value, weight, contribution, contribution_pct, confidence]
+      description: Detailed contribution of a single component to the target value.
+      properties:
+        name:
+          type: string
+          description: Component name.
+        value:
+          type: number
+          description: Raw component value.
+        weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Weight used in aggregation.
+        contribution:
+          type: number
+          description: |
+            Absolute contribution to the target value
+            (typically `value * weight`).
+        contribution_pct:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: |
+            Percentage contribution relative to the final target value.
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Confidence score for this component.
+        sub_breakdown:
+          type: array
+          description: |
+            Nested breakdown for sub-components, present when the
+            component itself has sub-components and `max_depth` allows it.
+          items:
+            $ref: "#/components/schemas/BreakdownItem"
+
+    DriverItem:
+      type: object
+      required: [name, impact, rank]
+      description: A ranked driver indicating how much a component influences the target.
+      properties:
+        name:
+          type: string
+          description: Component name.
+        impact:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: |
+            Normalised impact score (0 to 1). Represents this component's
+            share of total influence on the target.
+        rank:
+          type: integer
+          minimum: 1
+          description: 1-based rank (1 = highest impact).
+
+    # -- Graph Models -------------------------------------------------------
+    GraphResponse:
+      type: object
+      required: [nodes, edges]
+      description: Directed acyclic graph representing causal relationships.
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+
+    GraphNode:
+      type: object
+      required: [id, label, type, value]
+      description: A single node in the causal graph.
+      properties:
+        id:
+          type: string
+          description: Stable node identifier (matches component name).
+        label:
+          type: string
+          description: Human-readable display label.
+        type:
+          type: string
+          enum: [target, component, sub_component]
+          description: |
+            Node classification.
+            - `target`: the root metric being explained.
+            - `component`: a direct contributor.
+            - `sub_component`: a nested contributor.
+        value:
+          type: number
+          description: The value at this node.
+
+    GraphEdge:
+      type: object
+      required: [source, target, weight]
+      description: A directed edge from a contributor to the node it feeds into.
+      properties:
+        source:
+          type: string
+          description: ID of the source node (the contributor).
+        target:
+          type: string
+          description: ID of the target node (the parent).
+        weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Edge weight corresponding to the component weight.
+        label:
+          type: string
+          description: Optional human-readable label (e.g., `"w=0.4"`).
+
+    # -- Metadata -----------------------------------------------------------
+    ExplainMetadata:
+      type: object
+      required: [version, created_at, deterministic_hash, computation_type]
+      description: Provenance and reproducibility metadata.
+      properties:
+        version:
+          type: string
+          description: Engine version that produced this explanation.
+          examples:
+            - "1.0.0"
+        created_at:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp of when the explanation was created.
+        deterministic_hash:
+          type: string
+          pattern: "^sha256:[a-f0-9]{64}$"
+          description: |
+            SHA-256 hash of the canonical input. Two requests with identical
+            inputs will always produce the same hash, guaranteeing
+            deterministic reproducibility.
+        computation_type:
+          type: string
+          enum: [additive, multiplicative, custom]
+          description: |
+            The aggregation strategy used to combine components.
+            - `additive`: target = sum(component_i.value * component_i.weight)
+            - `multiplicative`: target = product(component_i.value ^ component_i.weight)
+            - `custom`: a user-defined aggregation function.
+
+    # -- Error Model --------------------------------------------------------
+    ErrorResponse:
+      type: object
+      required: [error]
+      description: Standard error envelope.
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              enum:
+                - BAD_REQUEST
+                - NOT_FOUND
+                - VALIDATION_ERROR
+                - INTERNAL_ERROR
+              description: Machine-readable error code.
+            message:
+              type: string
+              description: Human-readable error description.
+            details:
+              type: array
+              description: Optional list of field-level validation errors.
+              items:
+                $ref: "#/components/schemas/ValidationDetail"
+            request_id:
+              type: string
+              format: uuid
+              description: The request ID for correlation and debugging.
+
+    ValidationDetail:
+      type: object
+      required: [field, issue]
+      description: A single field-level validation error.
+      properties:
+        field:
+          type: string
+          description: |
+            JSON path to the invalid field (e.g., `components[0].weight`).
+        issue:
+          type: string
+          description: Human-readable description of what is wrong.
+
+    # -- Health Model -------------------------------------------------------
+    HealthResponse:
+      type: object
+      required: [status, version, uptime_seconds, timestamp]
+      description: Service health status.
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+          description: |
+            - `ok`: all systems operational.
+            - `degraded`: the service is running but one or more
+              dependencies are unhealthy.
+        version:
+          type: string
+          description: Running service version.
+        uptime_seconds:
+          type: integer
+          minimum: 0
+          description: Seconds since the service started.
+        timestamp:
+          type: string
+          format: date-time
+          description: Current server time in ISO-8601.
+
+    # -- Pagination (future-proof) ------------------------------------------
+    PaginationMeta:
+      type: object
+      required: [has_more]
+      description: |
+        Cursor-based pagination metadata. Included in list responses.
+        Uses keyset pagination for stable, performant paging.
+      properties:
+        has_more:
+          type: boolean
+          description: "`true` if additional pages are available."
+        next_cursor:
+          type: string
+          description: |
+            Opaque cursor to pass as the `cursor` query parameter for the
+            next page. Absent when `has_more` is `false`.
+        total_count:
+          type: integer
+          minimum: 0
+          description: |
+            Approximate total number of items matching the query. May be
+            omitted if the count is expensive to compute.
