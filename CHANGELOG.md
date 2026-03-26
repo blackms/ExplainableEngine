@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-26
+
+### Added
+
+- **Graph Serializer**: Multi-format export — JSON, DOT (Graphviz), Mermaid — with strategy pattern, deterministic output, and node coloring by type (INPUT=green, OUTPUT=pink, COMPUTED=blue, MISSING=grey) ([#49](https://github.com/blackms/ExplainableEngine/pull/49))
+- **Graph Export Endpoint**: `GET /api/v1/explain/{id}/graph?format=json|dot|mermaid` with content-type negotiation ([#49](https://github.com/blackms/ExplainableEngine/pull/49))
+- **Sensitivity Analyzer**: What-if analysis engine that clones requests, applies modifications, recomputes via orchestrator, and produces per-component diffs with sensitivity ranking ([#49](https://github.com/blackms/ExplainableEngine/pull/49))
+- **What-if Endpoint**: `POST /api/v1/explain/{id}/what-if` for scenario exploration with transient results (not persisted) ([#49](https://github.com/blackms/ExplainableEngine/pull/49))
+- **OriginalRequest preservation**: ExplainResponse now stores the original request for what-if recomputation ([#49](https://github.com/blackms/ExplainableEngine/pull/49))
+
+### User Stories Completed
+
+- US-003: Visualizzazione grafo
+- US-006: Sensitivity analysis
+
 ## [0.2.0] - 2026-03-26
 
 ### Added
@@ -50,5 +65,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - US-008: Submit explanation request (POST /explain)
 - US-009: Retrieve explanation (GET /explain/{id})
 
+[0.3.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.3.0
 [0.2.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.2.0
 [0.1.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.1.0
