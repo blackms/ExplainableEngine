@@ -7,24 +7,27 @@ type Component struct {
 	Value      float64     `json:"value"`
 	Weight     float64     `json:"weight"`
 	Confidence float64     `json:"confidence"`
+	Missing    bool        `json:"missing,omitempty"`
 	Components []Component `json:"components,omitempty"`
 }
 
 // ExplainOptions configures what to include in the explanation response.
 type ExplainOptions struct {
-	IncludeGraph   bool `json:"include_graph"`
-	IncludeDrivers bool `json:"include_drivers"`
-	MaxDrivers     int  `json:"max_drivers"`
-	MaxDepth       int  `json:"max_depth"`
+	IncludeGraph     bool    `json:"include_graph"`
+	IncludeDrivers   bool    `json:"include_drivers"`
+	MaxDrivers       int     `json:"max_drivers"`
+	MaxDepth         int     `json:"max_depth"`
+	MissingThreshold float64 `json:"missing_threshold"`
 }
 
 // DefaultExplainOptions returns sensible defaults.
 func DefaultExplainOptions() ExplainOptions {
 	return ExplainOptions{
-		IncludeGraph:   true,
-		IncludeDrivers: true,
-		MaxDrivers:     5,
-		MaxDepth:       10,
+		IncludeGraph:     true,
+		IncludeDrivers:   true,
+		MaxDrivers:       5,
+		MaxDepth:         10,
+		MissingThreshold: 0.2,
 	}
 }
 
@@ -46,6 +49,9 @@ func (r *ExplainRequest) GetOptions() ExplainOptions {
 		}
 		if opts.MaxDepth == 0 {
 			opts.MaxDepth = 10
+		}
+		if opts.MissingThreshold == 0 {
+			opts.MissingThreshold = 0.2
 		}
 		return opts
 	}

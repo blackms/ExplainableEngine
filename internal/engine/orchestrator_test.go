@@ -208,3 +208,68 @@ func TestOrchestrator_DefaultOptions(t *testing.T) {
 		t.Error("graph should be included by default")
 	}
 }
+
+func TestOrchestrator_MissingNodeInRequest(t *testing.T) {
+	orch := NewOrchestrator()
+	req := models.ExplainRequest{
+		Target: "score",
+		Value:  0.72,
+		Components: []models.Component{
+			{Name: "trend", Value: 0.8, Weight: 0.4, Confidence: 0.9},
+			{Name: "momentum", Value: 0.0, Weight: 0.3, Confidence: 0.0, Missing: true},
+			{Name: "volatility", Value: 0.5, Weight: 0.3, Confidence: 0.75},
+		},
+	}
+
+	resp, err := orch.Explain(req)
+	if err != nil {
+		t.Fatalf("Explain failed: %v", err)
+	}
+
+	// MissingImpact should reflect the missing node's weight fraction.
+	// momentum weight = 0.3, total = 0.4 + 0.3 + 0.3 = 1.0, so impact = 0.3.
+	if resp.MissingImpact != 0.3 {
+		t.Errorf("missing impact: got %f, want 0.3", resp.MissingImpact)
+	}
+}
+
+func TestOrchestrator_NoMissingNodes(t *testing.T) {
+	orch := NewOrchestrator()
+	req := makeTestRequest()
+
+	resp, err := orch.Explain(req)
+	if err != nil {
+		t.Fatalf("Explain failed: %v", err)
+	}
+
+	// No missing components, so MissingImpact should be 0.
+	if resp.MissingImpact != 0.0 {
+		t.Errorf("missing impact: got %f, want 0.0", resp.MissingImpact)
+	}
+}
+
+func TestOrchestrator_DriversNormalized(t *testing.T) {
+	orch := NewOrchestrator()
+	req := makeTestRequest()
+
+	resp, err := orch.Explain(req)
+	if err != nil {
+		t.Fatalf("Explain failed: %v", err)
+	}
+
+	if len(resp.TopDrivers) == 0 {
+		t.Fatal("expected at least one driver")
+	}
+
+	// The top driver should have impact = 1.0 (normalized).
+	if resp.TopDrivers[0].Impact != 1.0 {
+		t.Errorf("top driver impact: got %f, want 1.0", resp.TopDrivers[0].Impact)
+	}
+
+	// All impacts should be in [0, 1].
+	for _, d := range resp.TopDrivers {
+		if d.Impact < 0 || d.Impact > 1.0 {
+			t.Errorf("driver %s impact out of range: %f", d.Name, d.Impact)
+		}
+	}
+}
