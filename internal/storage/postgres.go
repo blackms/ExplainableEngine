@@ -11,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/blackms/ExplainableEngine/internal/models"
+	"github.com/blackms/ExplainableEngine/migrations"
 )
 
 // PostgresStore persists explanations in a PostgreSQL database using JSONB.
@@ -39,24 +40,13 @@ func NewPostgresStore(dsn string) (*PostgresStore, error) {
 		return nil, fmt.Errorf("pinging postgres: %w", err)
 	}
 
-	// Auto-create table.
-	if err := createPostgresTable(db); err != nil {
+	// Run database migrations.
+	if err := Migrate(db, migrations.FS, MigrateUp); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("creating table: %w", err)
+		return nil, fmt.Errorf("running migrations: %w", err)
 	}
 
 	return &PostgresStore{db: db}, nil
-}
-
-func createPostgresTable(db *sql.DB) error {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS explanations (
-			id         TEXT PRIMARY KEY,
-			data       JSONB NOT NULL,
-			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-		)
-	`)
-	return err
 }
 
 // Save persists an ExplainResponse. Uses INSERT ... ON CONFLICT DO NOTHING

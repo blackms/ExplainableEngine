@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -9,9 +10,26 @@ import (
 	"github.com/blackms/ExplainableEngine/internal/engine"
 	"github.com/blackms/ExplainableEngine/internal/middleware"
 	"github.com/blackms/ExplainableEngine/internal/storage"
+	"github.com/blackms/ExplainableEngine/migrations"
 )
 
 func main() {
+	migrateFlag := flag.String("migrate", "", "Run migrations and exit: up or down (requires STORAGE_BACKEND=postgresql)")
+	flag.Parse()
+
+	if *migrateFlag != "" {
+		dir := storage.MigrationDirection(*migrateFlag)
+		if dir != storage.MigrateUp && dir != storage.MigrateDown {
+			log.Fatalf("invalid migration direction %q: must be 'up' or 'down'", *migrateFlag)
+		}
+		dsn := storage.BuildPostgresDSN()
+		if err := storage.RunMigrations(dsn, migrations.FS, dir); err != nil {
+			log.Fatalf("migration failed: %v", err)
+		}
+		log.Printf("Migrations (%s) completed successfully", dir)
+		return
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8000"
