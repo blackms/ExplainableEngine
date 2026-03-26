@@ -2,7 +2,10 @@ package storage
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/blackms/ExplainableEngine/internal/models"
 )
@@ -99,4 +102,95 @@ func (s *InMemoryStore) removeFromOrder(key string) {
 			return
 		}
 	}
+}
+
+// List returns a paginated, filtered list of explanations sorted by created_at descending.
+func (s *InMemoryStore) List(opts ListOptions) (*ListResult, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Collect all items sorted by created_at descending.
+	all := make([]*models.ExplainResponse, 0, len(s.data))
+	for _, resp := range s.data {
+		all = append(all, resp)
+	}
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Metadata.CreatedAt.After(all[j].Metadata.CreatedAt)
+	})
+
+	// Apply filters.
+	var filtered []*models.ExplainResponse
+	for _, resp := range all {
+		if opts.Target != "" && !strings.Contains(resp.Target, opts.Target) {
+			continue
+		}
+		if opts.MinConfidence > 0 && resp.Confidence < opts.MinConfidence {
+			continue
+		}
+		if opts.MaxConfidence > 0 && resp.Confidence > opts.MaxConfidence {
+			continue
+		}
+		if opts.FromTime != "" {
+			fromT, err := time.Parse(time.RFC3339, opts.FromTime)
+			if err == nil && resp.Metadata.CreatedAt.Before(fromT) {
+				continue
+			}
+		}
+		if opts.ToTime != "" {
+			toT, err := time.Parse(time.RFC3339, opts.ToTime)
+			if err == nil && resp.Metadata.CreatedAt.After(toT) {
+				continue
+			}
+		}
+		filtered = append(filtered, resp)
+	}
+
+	total := len(filtered)
+
+	// Apply cursor: skip items until we pass the cursor ID.
+	if opts.Cursor != "" {
+		found := false
+		for i, resp := range filtered {
+			if resp.ID == opts.Cursor {
+				filtered = filtered[i+1:]
+				found = true
+				break
+			}
+		}
+		if !found {
+			filtered = nil
+		}
+	}
+
+	// Apply limit.
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	var nextCursor string
+	if len(filtered) > limit {
+		nextCursor = filtered[limit-1].ID
+		filtered = filtered[:limit]
+	}
+
+	if filtered == nil {
+		filtered = []*models.ExplainResponse{}
+	}
+
+	return &ListResult{
+		Items:      filtered,
+		NextCursor: nextCursor,
+		Total:      total,
+	}, nil
+}
+
+// Count returns the total number of stored explanations.
+func (s *InMemoryStore) Count() (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.data), nil
 }

@@ -97,6 +97,123 @@ func (s *PostgresStore) Exists(id string) (bool, error) {
 	return exists, nil
 }
 
+// pgQueryBuilder builds PostgreSQL queries with numbered $N parameters.
+type pgQueryBuilder struct {
+	where string
+	args  []any
+	n     int // next parameter number
+}
+
+func newPgQueryBuilder() *pgQueryBuilder {
+	return &pgQueryBuilder{where: " WHERE 1=1", n: 1}
+}
+
+func (b *pgQueryBuilder) addFilter(clause string, arg any) {
+	b.where += fmt.Sprintf(" AND "+clause, b.n)
+	b.args = append(b.args, arg)
+	b.n++
+}
+
+func (b *pgQueryBuilder) addParam(arg any) string {
+	p := fmt.Sprintf("$%d", b.n)
+	b.args = append(b.args, arg)
+	b.n++
+	return p
+}
+
+func pgApplyFilters(b *pgQueryBuilder, opts ListOptions) {
+	if opts.Target != "" {
+		b.addFilter("data->>'target' LIKE $%d", "%"+opts.Target+"%")
+	}
+	if opts.MinConfidence > 0 {
+		b.addFilter("(data->>'confidence')::float >= $%d", opts.MinConfidence)
+	}
+	if opts.MaxConfidence > 0 {
+		b.addFilter("(data->>'confidence')::float <= $%d", opts.MaxConfidence)
+	}
+	if opts.FromTime != "" {
+		b.addFilter("created_at >= $%d", opts.FromTime)
+	}
+	if opts.ToTime != "" {
+		b.addFilter("created_at <= $%d", opts.ToTime)
+	}
+}
+
+// List returns a paginated, filtered list of explanations sorted by created_at descending.
+func (s *PostgresStore) List(opts ListOptions) (*ListResult, error) {
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	// Count query.
+	cb := newPgQueryBuilder()
+	pgApplyFilters(cb, opts)
+	var total int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM explanations"+cb.where, cb.args...).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count explanations: %w", err)
+	}
+
+	// Data query (separate parameter numbering).
+	qb := newPgQueryBuilder()
+	pgApplyFilters(qb, opts)
+	if opts.Cursor != "" {
+		qb.addFilter("(created_at, id) < (SELECT created_at, id FROM explanations WHERE id = $%d)", opts.Cursor)
+	}
+	limitParam := qb.addParam(limit + 1)
+	query := "SELECT data FROM explanations" + qb.where + " ORDER BY created_at DESC, id DESC LIMIT " + limitParam
+
+	rows, err := s.db.Query(query, qb.args...)
+	if err != nil {
+		return nil, fmt.Errorf("list explanations: %w", err)
+	}
+	defer rows.Close()
+
+	var items []*models.ExplainResponse
+	for rows.Next() {
+		var data []byte
+		if err := rows.Scan(&data); err != nil {
+			return nil, fmt.Errorf("scan explanation: %w", err)
+		}
+		var resp models.ExplainResponse
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return nil, fmt.Errorf("unmarshal explanation: %w", err)
+		}
+		items = append(items, &resp)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate explanations: %w", err)
+	}
+
+	var nextCursor string
+	if len(items) > limit {
+		nextCursor = items[limit-1].ID
+		items = items[:limit]
+	}
+
+	if items == nil {
+		items = []*models.ExplainResponse{}
+	}
+
+	return &ListResult{
+		Items:      items,
+		NextCursor: nextCursor,
+		Total:      total,
+	}, nil
+}
+
+// Count returns the total number of stored explanations.
+func (s *PostgresStore) Count() (int, error) {
+	var count int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM explanations").Scan(&count); err != nil {
+		return 0, fmt.Errorf("count explanations: %w", err)
+	}
+	return count, nil
+}
+
 // Close closes the underlying database connection pool.
 func (s *PostgresStore) Close() error {
 	return s.db.Close()
