@@ -209,3 +209,31 @@ export interface SummaryResponse {
   audience: string;
   language: string;
 }
+
+// AIP (AI-Powered) Sentiment types
+
+export interface AIPSentimentData {
+  ticker: string;
+  sentiment_7d: number;
+  sentiment_30d: number;
+  trend: number;
+  article_count_7d: number;
+  positive_ratio: number;
+  sentiment_label: string;
+  sentiment_score_scaled: number;
+}
+
+export interface AIPExplainResponse {
+  explanation: ExplainResponse;
+  aip_data: AIPSentimentData;
+  ticker: string;
+}
+
+export interface AIPMarketMoodResponse {
+  explanation: ExplainResponse;
+  market_mood: {
+    overall_sentiment: number;
+    overall_trend: number;
+    total_articles: number;
+  };
+}

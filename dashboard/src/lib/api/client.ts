@@ -1,4 +1,6 @@
 import type {
+  AIPExplainResponse,
+  AIPMarketMoodResponse,
   AskRequest,
   AskResponse,
   ExplainRequest,
@@ -91,4 +93,11 @@ export const api = {
 
   stats: () =>
     fetchAPI<{ total_explanations: number; status: string }>('/stats'),
+
+  // AIP Sentiment
+  explainTicker: (ticker: string) =>
+    fetchAPI<AIPExplainResponse>(`/aip/explain/${ticker}`),
+
+  explainMarketMood: () =>
+    fetchAPI<AIPMarketMoodResponse>('/aip/explain/market-mood'),
 };
