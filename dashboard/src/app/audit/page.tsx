@@ -13,12 +13,15 @@ import type { ListOptions } from '@/lib/api/types';
 function AuditSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-28 w-full" />
-      <Skeleton className="h-8 w-full" />
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-8 w-[140px]" />
+        <Skeleton className="h-8 w-[140px]" />
+      </div>
+      <Skeleton className="h-10 w-full" />
       {Array.from({ length: 5 }, (_, i) => (
         <Skeleton key={i} className="h-12 w-full" />
       ))}
-      <Skeleton className="h-10 w-full" />
     </div>
   );
 }
@@ -51,20 +54,31 @@ export default function AuditPage() {
     setFilters(next);
   }, []);
 
+  const handleRowClick = useCallback(
+    (id: string) => {
+      if (!id) {
+        // Empty-state CTA: clear filters
+        handleFiltersChange({ limit: filters.limit });
+        return;
+      }
+      router.push(`/explain/${id}`);
+    },
+    [router, handleFiltersChange, filters.limit],
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Audit Trail</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Audit Log</h1>
+          <p className="text-sm text-muted-foreground">
+            Browse and search all explanations
+          </p>
+        </div>
         {data?.items && data.items.length > 0 && (
           <ExportButton items={data.items} />
         )}
       </div>
-
-      <FilterPanel
-        filters={filters}
-        onChange={handleFiltersChange}
-        total={data?.total ?? 0}
-      />
 
       {error ? (
         <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
@@ -74,9 +88,14 @@ export default function AuditPage() {
         <AuditSkeleton />
       ) : (
         <>
+          <FilterPanel
+            filters={filters}
+            onChange={handleFiltersChange}
+            total={data?.total ?? 0}
+          />
           <ExplanationTable
             items={data?.items ?? []}
-            onRowClick={(id) => router.push(`/explain/${id}`)}
+            onRowClick={handleRowClick}
           />
           <PaginationControls
             total={data?.total ?? 0}

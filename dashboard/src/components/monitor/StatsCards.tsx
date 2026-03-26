@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { Activity, AlertTriangle, BarChart3, Clock } from 'lucide-react';
 import { useExplanationList, useStats } from '@/lib/api/hooks';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,19 +21,29 @@ function relativeTime(iso: string): string {
 interface StatCardProps {
   label: string;
   value: string;
+  icon: React.ReactNode;
   loading?: boolean;
 }
 
-function StatCard({ label, value, loading }: StatCardProps) {
+function StatCard({ label, value, icon, loading }: StatCardProps) {
   return (
     <Card>
-      <CardContent className="py-2">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        {loading ? (
-          <Skeleton className="h-8 w-20 mt-1" />
-        ) : (
-          <p className="text-2xl font-bold">{value}</p>
-        )}
+      <CardContent className="py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            {icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground">
+              {label}
+            </p>
+            {loading ? (
+              <Skeleton className="h-7 w-16 mt-0.5" />
+            ) : (
+              <p className="text-xl font-bold tabular-nums">{value}</p>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -42,7 +53,7 @@ export function StatsCards() {
   const { data: statsData, isLoading: statsLoading } = useStats();
   const { data: feedData, isLoading: feedLoading } = useExplanationList(
     { limit: 10 },
-    { refetchInterval: 10000 }
+    { refetchInterval: 10000 },
   );
 
   const items = feedData?.items ?? [];
@@ -55,7 +66,7 @@ export function StatsCards() {
 
   const anomalyCount = useMemo(() => {
     return items.filter(
-      (item) => item.confidence < 0.5 || item.missing_impact > 0.2
+      (item) => item.confidence < 0.5 || item.missing_impact > 0.2,
     ).length;
   }, [items]);
 
@@ -74,21 +85,25 @@ export function StatsCards() {
       <StatCard
         label="Total Explanations"
         value={statsData?.total_explanations?.toLocaleString() ?? '0'}
+        icon={<BarChart3 className="size-4 text-muted-foreground" />}
         loading={statsLoading}
       />
       <StatCard
         label="Avg. Confidence"
         value={`${(avgConfidence * 100).toFixed(1)}%`}
+        icon={<Activity className="size-4 text-muted-foreground" />}
         loading={isLoading}
       />
       <StatCard
         label="Anomalies"
         value={String(anomalyCount)}
+        icon={<AlertTriangle className="size-4 text-muted-foreground" />}
         loading={feedLoading}
       />
       <StatCard
         label="Latest"
         value={latestTimestamp ? relativeTime(latestTimestamp) : '--'}
+        icon={<Clock className="size-4 text-muted-foreground" />}
         loading={feedLoading}
       />
     </div>
