@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { SummaryCard } from '@/components/explanation/SummaryCard';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ValueCard, ConfidenceCard } from '@/components/explanation/SummaryCard';
 import { BreakdownChart } from '@/components/explanation/BreakdownChart';
 import { DriverRanking } from '@/components/explanation/DriverRanking';
 import { ConfidencePanel } from '@/components/explanation/ConfidencePanel';
@@ -37,59 +38,78 @@ export default async function ExplanationPage({
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header with View Full Graph link */}
+      {/* Header: back + title + actions */}
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold sr-only">Explanation Detail</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <ExportPanel explanation={explanation} />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            &larr; Back
+          </Link>
+          <h1 className="text-2xl font-bold">{explanation.target}</h1>
+        </div>
+        <div className="flex items-center gap-2">
           {explanation.graph && (
             <Link
               href={`/explain/${id}/graph`}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
             >
-              View Full Graph
+              View Graph
             </Link>
           )}
+          <Link
+            href={`/explain/${id}/whatif`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            What-if
+          </Link>
+          <ExportPanel explanation={explanation} />
         </div>
       </div>
 
-      {/* Row 1: SummaryCard (full width) */}
-      <SummaryCard
-        target={explanation.target}
-        finalValue={explanation.final_value}
-        confidence={explanation.confidence}
-        missingImpact={explanation.missing_impact}
-        topDrivers={explanation.top_drivers}
-        metadata={explanation.metadata}
-      />
-
-      {/* Row 2: BreakdownChart (left) + DriverRanking (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BreakdownChart breakdown={explanation.breakdown} />
-        <DriverRanking drivers={explanation.top_drivers} />
+      {/* Metric cards: value + confidence */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ValueCard
+          value={explanation.final_value}
+          target={explanation.target}
+          hash={explanation.metadata.deterministic_hash}
+        />
+        <ConfidenceCard confidence={explanation.confidence} />
       </div>
 
-      {/* Row 3: ConfidencePanel (left) + NarrativeViewer (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Component Breakdown (full width) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Component Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BreakdownChart breakdown={explanation.breakdown} />
+        </CardContent>
+      </Card>
+
+      {/* Drivers + Data Quality */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <DriverRanking drivers={explanation.top_drivers} />
         <ConfidencePanel
           overall={explanation.confidence}
           perNode={explanation.confidence_detail?.per_node ?? {}}
           missingImpact={explanation.missing_impact}
         />
-        <NarrativeViewer explanationId={id} />
       </div>
 
-      {/* Row 4: Sensitivity Quick View */}
-      {explanation.top_drivers && explanation.top_drivers.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Narrative + Sensitivity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <NarrativeViewer explanationId={id} />
+        {explanation.top_drivers && explanation.top_drivers.length > 0 && (
           <SensitivityQuickView
             drivers={explanation.top_drivers}
             explanationId={id}
           />
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Row 5: AI Assistant */}
+      {/* AI Assistant */}
       <AIAssistantSection explanationId={id} />
     </div>
   );

@@ -1,348 +1,299 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2, Send, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import Link from 'next/link';
+import {
+  Plus,
+  Search,
+  Activity,
+  ChevronRight,
+  Layers,
+} from 'lucide-react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useCreateExplanation } from '@/lib/api/hooks';
-import type { Component as ComponentType } from '@/lib/api/types';
+import { useStats } from '@/lib/api/hooks';
+import { useExplanationList } from '@/lib/api/hooks';
 
-interface RecentExplanation {
-  id: string;
-  target: string;
-  value: number;
-  confidence: number;
-  created_at: string;
+function confidenceColor(value: number) {
+  if (value >= 0.8) return { text: 'text-emerald-500', bg: 'bg-emerald-500', bgMuted: 'bg-emerald-50', label: 'High confidence' };
+  if (value >= 0.5) return { text: 'text-amber-500', bg: 'bg-amber-500', bgMuted: 'bg-amber-50', label: 'Moderate confidence' };
+  return { text: 'text-rose-500', bg: 'bg-rose-500', bgMuted: 'bg-rose-50', label: 'Low -- review recommended' };
 }
 
-const STORAGE_KEY = 'explainable-engine-recent';
+function formatRelativeTime(dateString: string): string {
+  const now = Date.now();
+  const then = new Date(dateString).getTime();
+  const diffMs = now - then;
+  const diffSec = Math.floor(diffMs / 1000);
 
-function loadRecent(): RecentExplanation[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}h ago`;
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return new Date(dateString).toLocaleDateString();
 }
 
-function saveRecent(items: RecentExplanation[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 20)));
+function StatCard({
+  label,
+  value,
+  subtitle,
+  loading,
+}: {
+  label: string;
+  value: string;
+  subtitle?: string;
+  loading?: boolean;
+}) {
+  return (
+    <Card className="transition-shadow duration-150 hover:shadow-sm">
+      <CardContent className="space-y-2 p-5">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        {loading ? (
+          <div className="h-10 w-20 animate-pulse rounded bg-muted" />
+        ) : (
+          <p className="text-4xl font-bold tabular-nums text-foreground">
+            {value}
+          </p>
+        )}
+        {subtitle && (
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
-function emptyComponent(): ComponentType {
-  return { name: '', value: 0, weight: 1, confidence: 1 };
+function ConfidenceDot({ value }: { value: number }) {
+  const conf = confidenceColor(value);
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={`inline-block size-2 rounded-full ${conf.bg}`} />
+      <span className={`text-sm tabular-nums ${conf.text}`}>
+        {(value * 100).toFixed(0)}%
+      </span>
+    </span>
+  );
 }
 
 export default function HomePage() {
   const router = useRouter();
-  const createMutation = useCreateExplanation();
+  const { data: stats, isLoading: statsLoading } = useStats();
+  const { data: recentData, isLoading: recentLoading } = useExplanationList({ limit: 5 });
 
-  const [target, setTarget] = useState('');
-  const [value, setValue] = useState<number>(0);
-  const [components, setComponents] = useState<ComponentType[]>([
-    emptyComponent(),
-  ]);
-  const [recent, setRecent] = useState<RecentExplanation[]>([]);
-  const [formOpen, setFormOpen] = useState(false);
+  const recentItems = recentData?.items ?? [];
+  const totalExplanations = stats?.total_explanations ?? 0;
 
-  useEffect(() => {
-    setRecent(loadRecent());
-  }, []);
+  // Compute average confidence from recent items
+  const avgConfidence =
+    recentItems.length > 0
+      ? recentItems.reduce((sum, item) => sum + item.confidence, 0) / recentItems.length
+      : 0;
 
-  const updateComponent = useCallback(
-    (index: number, field: keyof ComponentType, val: string | number) => {
-      setComponents((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], [field]: val };
-        return next;
-      });
-    },
-    []
-  );
-
-  const addComponent = useCallback(() => {
-    setComponents((prev) => [...prev, emptyComponent()]);
-  }, []);
-
-  const removeComponent = useCallback((index: number) => {
-    setComponents((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const validComponents = components.filter((c) => c.name.trim() !== '');
-    if (!target.trim() || validComponents.length === 0) return;
-
-    try {
-      const result = await createMutation.mutateAsync({
-        target: target.trim(),
-        value,
-        components: validComponents,
-        options: {
-          include_graph: true,
-          include_drivers: true,
-        },
-      });
-
-      const entry: RecentExplanation = {
-        id: result.id,
-        target: result.target,
-        value: result.final_value,
-        confidence: result.confidence,
-        created_at: result.metadata.created_at,
-      };
-
-      const updated = [entry, ...recent.filter((r) => r.id !== result.id)];
-      setRecent(updated);
-      saveRecent(updated);
-
-      router.push(`/explain/${result.id}`);
-    } catch {
-      // Error is available via createMutation.error
-    }
-  };
+  // Find the most recent item's timestamp
+  const lastActivity =
+    recentItems.length > 0 ? recentItems[0].metadata.created_at : null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      {/* New Explanation */}
+    <div className="space-y-6">
+      {/* Welcome header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Here&apos;s what&apos;s happening with your explanations.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/audit"
+            className="inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <Search className="size-3.5" />
+            Search
+          </Link>
+          <Link
+            href="/audit"
+            className="inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] bg-primary px-2.5 text-[0.8rem] font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+          >
+            <Plus className="size-3.5" />
+            New Explanation
+          </Link>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total Explanations"
+          value={statsLoading ? '--' : String(totalExplanations)}
+          loading={statsLoading}
+        />
+        <StatCard
+          label="Avg Confidence"
+          value={
+            recentLoading
+              ? '--'
+              : recentItems.length > 0
+                ? `${(avgConfidence * 100).toFixed(0)}%`
+                : '--'
+          }
+          subtitle={
+            recentItems.length > 0
+              ? confidenceColor(avgConfidence).label
+              : undefined
+          }
+          loading={recentLoading}
+        />
+        <StatCard
+          label="Active Alerts"
+          value="0"
+          subtitle="No active alerts"
+        />
+        <StatCard
+          label="Last Activity"
+          value={
+            lastActivity ? formatRelativeTime(lastActivity) : '--'
+          }
+          loading={recentLoading}
+        />
+      </div>
+
+      {/* Recent explanations */}
       <Card>
-        <CardHeader>
-          <CardTitle>New Explanation</CardTitle>
-          <CardDescription>
-            Submit components to generate an explainability breakdown
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-xl font-semibold">
+            Recent Explanations
+          </CardTitle>
+          <Link
+            href="/audit"
+            className="text-sm text-primary hover:underline"
+          >
+            View all
+          </Link>
         </CardHeader>
         <CardContent>
-          {!formOpen ? (
-            <Button onClick={() => setFormOpen(true)} size="lg">
-              <Plus className="size-4" data-icon="inline-start" />
-              Create Explanation
-            </Button>
+          {recentLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between py-3">
+                  <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                  <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+                </div>
+              ))}
+            </div>
+          ) : recentItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Layers className="mb-3 size-10 text-muted-foreground/50" />
+              <p className="text-sm font-medium text-foreground">
+                No explanations yet
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Create your first explanation to see it here.
+              </p>
+              <Link
+                href="/audit"
+                className="mt-4 inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] bg-primary px-2.5 text-[0.8rem] font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+              >
+                <Plus className="size-3.5" />
+                Create Explanation
+              </Link>
+            </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="target">Target name</Label>
-                  <Input
-                    id="target"
-                    placeholder="e.g. Final Score"
-                    value={target}
-                    onChange={(e) => setTarget(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="value">Value</Label>
-                  <Input
-                    id="value"
-                    type="number"
-                    step="any"
-                    value={value}
-                    onChange={(e) => setValue(parseFloat(e.target.value) || 0)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Components</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addComponent}
-                  >
-                    <Plus className="size-3.5" data-icon="inline-start" />
-                    Add
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
-                  {components.map((comp, i) => (
-                    <div
-                      key={i}
-                      className="grid grid-cols-[1fr_80px_80px_80px_auto] items-end gap-2"
-                    >
-                      <div className="space-y-1">
-                        {i === 0 && (
-                          <Label className="text-xs text-muted-foreground">
-                            Name
-                          </Label>
-                        )}
-                        <Input
-                          placeholder="Component name"
-                          value={comp.name}
-                          onChange={(e) =>
-                            updateComponent(i, 'name', e.target.value)
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        {i === 0 && (
-                          <Label className="text-xs text-muted-foreground">
-                            Value
-                          </Label>
-                        )}
-                        <Input
-                          type="number"
-                          step="any"
-                          value={comp.value}
-                          onChange={(e) =>
-                            updateComponent(
-                              i,
-                              'value',
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        {i === 0 && (
-                          <Label className="text-xs text-muted-foreground">
-                            Weight
-                          </Label>
-                        )}
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0"
-                          max="1"
-                          value={comp.weight}
-                          onChange={(e) =>
-                            updateComponent(
-                              i,
-                              'weight',
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        {i === 0 && (
-                          <Label className="text-xs text-muted-foreground">
-                            Conf.
-                          </Label>
-                        )}
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0"
-                          max="1"
-                          value={comp.confidence}
-                          onChange={(e) =>
-                            updateComponent(
-                              i,
-                              'confidence',
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeComponent(i)}
-                        disabled={components.length === 1}
-                        className={i === 0 ? 'mt-5' : ''}
-                      >
-                        <Trash2 className="size-3.5 text-muted-foreground" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  size="lg"
-                >
-                  <Send className="size-4" data-icon="inline-start" />
-                  {createMutation.isPending ? 'Submitting...' : 'Submit'}
-                </Button>
-                <Button
+            <div className="divide-y divide-border">
+              {recentItems.map((item) => (
+                <button
+                  key={item.id}
                   type="button"
-                  variant="ghost"
-                  size="lg"
-                  onClick={() => setFormOpen(false)}
+                  onClick={() => router.push(`/explain/${item.id}`)}
+                  className="flex w-full items-center justify-between rounded-md px-4 py-3 text-left transition-colors hover:bg-accent/50"
                 >
-                  Cancel
-                </Button>
-              </div>
-
-              {createMutation.isError && (
-                <p className="text-sm text-destructive">
-                  {createMutation.error.message}
-                </p>
-              )}
-            </form>
+                  <div className="flex items-center gap-3">
+                    <span className="truncate text-sm font-medium font-mono">
+                      {item.target}
+                    </span>
+                    <span className="text-sm tabular-nums text-muted-foreground">
+                      {item.final_value.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <ConfidenceDot value={item.confidence} />
+                    <span className="w-16 text-right text-xs text-muted-foreground">
+                      {formatRelativeTime(item.metadata.created_at)}
+                    </span>
+                    <ChevronRight className="size-4 text-muted-foreground" />
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Recent Explanations */}
-      {recent.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Explanations</CardTitle>
-            <CardDescription>
-              Previously generated explanations
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="divide-y divide-border">
-              {recent.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/explain/${item.id}`)}
-                    className="flex w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:bg-muted/50 rounded-lg px-2 -mx-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {item.target}
-                      </p>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock className="size-3" />
-                        {new Date(item.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-4 text-sm">
-                      <span className="text-muted-foreground">
-                        Value:{' '}
-                        <span className="font-medium text-foreground">
-                          {item.value.toFixed(2)}
-                        </span>
-                      </span>
-                      <span className="text-muted-foreground">
-                        Conf:{' '}
-                        <span className="font-medium text-foreground">
-                          {(item.confidence * 100).toFixed(0)}%
-                        </span>
-                      </span>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+      {/* Quick actions */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Link href="/audit" className="group">
+          <Card className="h-full transition-all duration-150 group-hover:shadow-sm group-hover:ring-1 group-hover:ring-primary/20">
+            <CardContent className="flex items-start gap-3 p-5">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Plus className="size-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  New Explanation
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Submit components to generate an explainability breakdown
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/audit" className="group">
+          <Card className="h-full transition-all duration-150 group-hover:shadow-sm group-hover:ring-1 group-hover:ring-primary/20">
+            <CardContent className="flex items-start gap-3 p-5">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Search className="size-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Browse Archive
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Search and filter through past explanations
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/monitor" className="group">
+          <Card className="h-full transition-all duration-150 group-hover:shadow-sm group-hover:ring-1 group-hover:ring-primary/20">
+            <CardContent className="flex items-start gap-3 p-5">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Activity className="size-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Live Monitor
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Watch explanations and alerts in real-time
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
     </div>
   );
 }

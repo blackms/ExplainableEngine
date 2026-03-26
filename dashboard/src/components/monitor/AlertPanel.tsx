@@ -2,9 +2,9 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { AlertTriangle, ShieldCheck, X, XCircle } from 'lucide-react';
 import { useExplanationList } from '@/lib/api/hooks';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertBadge } from './AlertBadge';
 
@@ -24,7 +24,7 @@ function deriveAlerts(
     confidence: number;
     missing_impact: number;
     metadata: { created_at: string };
-  }>
+  }>,
 ): Alert[] {
   const alerts: Alert[] = [];
 
@@ -54,30 +54,36 @@ function deriveAlerts(
   return alerts;
 }
 
-function alertLabel(type: Alert['type']): string {
-  return type === 'low_confidence' ? 'Low Confidence' : 'High Missing Data';
+function AlertIcon({ type }: { type: Alert['type'] }) {
+  if (type === 'low_confidence') {
+    return <AlertTriangle className="size-4 text-amber-500 shrink-0" />;
+  }
+  return <XCircle className="size-4 text-rose-500 shrink-0" />;
 }
 
-function alertVariant(type: Alert['type']) {
-  return type === 'low_confidence' ? 'secondary' as const : 'destructive' as const;
+function alertDescription(alert: Alert): string {
+  if (alert.type === 'low_confidence') {
+    return `Low confidence (${(alert.value * 100).toFixed(0)}%) on ${alert.target}`;
+  }
+  return `High missing data (${(alert.value * 100).toFixed(0)}%) on ${alert.target}`;
 }
 
 export function AlertPanel() {
   const { data } = useExplanationList(
     { limit: 10 },
-    { refetchInterval: 10000 }
+    { refetchInterval: 10000 },
   );
 
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const allAlerts = useMemo(
     () => deriveAlerts(data?.items ?? []),
-    [data?.items]
+    [data?.items],
   );
 
   const visibleAlerts = useMemo(
     () => allAlerts.filter((a) => !dismissedIds.has(a.id)),
-    [allAlerts, dismissedIds]
+    [allAlerts, dismissedIds],
   );
 
   const dismiss = useCallback((id: string) => {
@@ -90,54 +96,59 @@ export function AlertPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <div className="flex items-center gap-2">
           <CardTitle>Alerts</CardTitle>
           <AlertBadge count={visibleAlerts.length} />
         </div>
         {visibleAlerts.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={clearAll}>
-            Clear all
-          </Button>
+          <CardAction>
+            <Button variant="ghost" size="sm" onClick={clearAll}>
+              Clear all
+            </Button>
+          </CardAction>
         )}
       </CardHeader>
       <CardContent>
         {visibleAlerts.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            No anomalies detected.
-          </p>
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <ShieldCheck className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-medium">All systems normal</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                No active alerts. Everything looks good.
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="space-y-2">
             {visibleAlerts.map((alert) => (
               <div
                 key={alert.id}
-                className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm"
+                className="flex items-start gap-3 rounded-lg border p-3 text-sm"
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <Badge variant={alertVariant(alert.type)}>
-                    {alertLabel(alert.type)}
-                  </Badge>
-                  <span className="truncate font-medium">{alert.target}</span>
-                  <span className="text-muted-foreground shrink-0">
-                    {(alert.value * 100).toFixed(0)}%
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <AlertIcon type={alert.type} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-snug">
+                    {alertDescription(alert)}
+                  </p>
                   <Link
                     href={`/explain/${alert.explanationId}`}
-                    className="text-xs text-primary hover:underline whitespace-nowrap"
+                    className="text-xs text-primary hover:underline mt-1 inline-block"
                   >
-                    View &rarr;
+                    View details
                   </Link>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => dismiss(alert.id)}
-                    aria-label="Dismiss alert"
-                  >
-                    &times;
-                  </Button>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => dismiss(alert.id)}
+                  aria-label="Dismiss alert"
+                >
+                  <X className="size-3.5" />
+                </Button>
               </div>
             ))}
           </div>
