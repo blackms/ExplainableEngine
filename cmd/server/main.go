@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/blackms/ExplainableEngine/internal/api"
+	"github.com/blackms/ExplainableEngine/internal/engine"
 	"github.com/blackms/ExplainableEngine/internal/storage"
 )
 
@@ -30,10 +31,8 @@ func main() {
 		log.Fatalf("failed to create store: %v", err)
 	}
 
-	// The orchestrator is nil for now; it will be wired in when the engine
-	// package provides a concrete implementation. The API will return 500
-	// if POST /api/v1/explain is called without one.
-	router := api.NewRouter(store, nil)
+	orch := engine.NewOrchestrator()
+	router := api.NewRouter(store, orch)
 
 	log.Printf("Explainable Engine starting on :%s (storage=%s)", port, backend)
 	if err := http.ListenAndServe(":"+port, router); err != nil {
