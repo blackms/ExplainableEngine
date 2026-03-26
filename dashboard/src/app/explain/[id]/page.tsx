@@ -1,6 +1,9 @@
+import Link from 'next/link';
 import { SummaryCard } from '@/components/explanation/SummaryCard';
 import { BreakdownChart } from '@/components/explanation/BreakdownChart';
 import { DriverRanking } from '@/components/explanation/DriverRanking';
+import { ConfidencePanel } from '@/components/explanation/ConfidencePanel';
+import { NarrativeViewer } from '@/components/explanation/NarrativeViewer';
 
 export default async function ExplanationPage({
   params,
@@ -31,6 +34,20 @@ export default async function ExplanationPage({
 
   return (
     <div className="space-y-6 p-6">
+      {/* Header with View Full Graph link */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold sr-only">Explanation Detail</h1>
+        {explanation.graph && (
+          <Link
+            href={`/explain/${id}/graph`}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors"
+          >
+            View Full Graph
+          </Link>
+        )}
+      </div>
+
+      {/* Row 1: SummaryCard (full width) */}
       <SummaryCard
         target={explanation.target}
         finalValue={explanation.final_value}
@@ -39,9 +56,21 @@ export default async function ExplanationPage({
         topDrivers={explanation.top_drivers}
         metadata={explanation.metadata}
       />
+
+      {/* Row 2: BreakdownChart (left) + DriverRanking (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <BreakdownChart breakdown={explanation.breakdown} />
         <DriverRanking drivers={explanation.top_drivers} />
+      </div>
+
+      {/* Row 3: ConfidencePanel (left) + NarrativeViewer (right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ConfidencePanel
+          overall={explanation.confidence}
+          perNode={explanation.confidence_detail?.per_node ?? {}}
+          missingImpact={explanation.missing_impact}
+        />
+        <NarrativeViewer explanationId={id} />
       </div>
     </div>
   );
