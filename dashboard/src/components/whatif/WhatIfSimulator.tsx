@@ -5,22 +5,43 @@ import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import type { ExplainResponse, Modification, SensitivityResult } from '@/lib/api/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ComponentSlider } from './ComponentSlider';
 import { ComparisonView } from './ComparisonView';
 import { SensitivityRanking } from './SensitivityRanking';
+import { saveScenario } from '@/lib/scenarios';
 
 interface WhatIfSimulatorProps {
   explanation: ExplainResponse;
+  initialModifications?: Record<string, number>;
+  onScenarioSaved?: () => void;
 }
 
-export function WhatIfSimulator({ explanation }: WhatIfSimulatorProps) {
+export function WhatIfSimulator({ explanation, initialModifications, onScenarioSaved }: WhatIfSimulatorProps) {
   const [modifications, setModifications] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
     for (const item of explanation.breakdown) {
-      initial[item.label] = item.value;
+      initial[item.label] = initialModifications?.[item.label] ?? item.value;
     }
     return initial;
   });
+
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [scenarioName, setScenarioName] = useState('');
+
+  // Sync when initialModifications changes externally (e.g. loading a scenario)
+  useEffect(() => {
+    if (initialModifications) {
+      setModifications((prev) => {
+        const next: Record<string, number> = {};
+        for (const item of explanation.breakdown) {
+          next[item.label] = initialModifications[item.label] ?? item.value;
+        }
+        return next;
+      });
+    }
+  }, [initialModifications, explanation.breakdown]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -126,12 +147,77 @@ export function WhatIfSimulator({ explanation }: WhatIfSimulatorProps) {
             >
               Reset All
             </button>
+            {whatIfMutation.data && (
+              <Button
+                variant="outline"
+                size="default"
+                onClick={() => {
+                  setScenarioName('');
+                  setShowSaveDialog(true);
+                }}
+              >
+                Save Scenario
+              </Button>
+            )}
             {whatIfMutation.isError && (
               <span className="text-sm text-red-600">
                 Error: {whatIfMutation.error?.message ?? 'Analysis failed'}
               </span>
             )}
           </div>
+
+          {showSaveDialog && (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-3">
+              <Input
+                placeholder="Scenario name..."
+                value={scenarioName}
+                onChange={(e) => setScenarioName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && scenarioName.trim() && whatIfMutation.data) {
+                    const modList = buildModList();
+                    saveScenario({
+                      name: scenarioName.trim(),
+                      explanationId: explanation.id,
+                      modifications: modList,
+                      result: whatIfMutation.data,
+                    });
+                    setShowSaveDialog(false);
+                    setScenarioName('');
+                    onScenarioSaved?.();
+                  }
+                }}
+                className="max-w-xs"
+                autoFocus
+              />
+              <Button
+                size="sm"
+                disabled={!scenarioName.trim()}
+                onClick={() => {
+                  if (whatIfMutation.data) {
+                    const modList = buildModList();
+                    saveScenario({
+                      name: scenarioName.trim(),
+                      explanationId: explanation.id,
+                      modifications: modList,
+                      result: whatIfMutation.data,
+                    });
+                    setShowSaveDialog(false);
+                    setScenarioName('');
+                    onScenarioSaved?.();
+                  }
+                }}
+              >
+                Save
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSaveDialog(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

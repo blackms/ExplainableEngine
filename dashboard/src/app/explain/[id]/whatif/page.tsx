@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { WhatIfSimulator } from '@/components/whatif/WhatIfSimulator';
+import { WhatIfPageClient } from './WhatIfPageClient';
 
 export default async function WhatIfPage({
   params,
@@ -36,7 +36,7 @@ export default async function WhatIfPage({
           &larr; Back to detail
         </Link>
       </div>
-      <WhatIfSimulator explanation={explanation} />
+      <WhatIfPageClient explanation={explanation} />
     </div>
   );
 }
