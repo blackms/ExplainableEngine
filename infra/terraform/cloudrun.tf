@@ -107,13 +107,15 @@ resource "google_cloud_run_v2_service" "main" {
   }
 }
 
-# Allow unauthenticated access (public API)
-resource "google_cloud_run_v2_service_iam_member" "public" {
-  name     = google_cloud_run_v2_service.main.name
-  location = var.region
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
+# Note: allUsers IAM binding removed due to org policy restriction.
+# Access requires authentication or use a load balancer with IAP.
+# To grant specific users access:
+# resource "google_cloud_run_v2_service_iam_member" "invoker" {
+#   name     = google_cloud_run_v2_service.main.name
+#   location = var.region
+#   role     = "roles/run.invoker"
+#   member   = "user:your-email@domain.com"
+# }
 
 # Grant Cloud Run SA access to Secret Manager secret
 resource "google_secret_manager_secret_iam_member" "cloud_run_access" {
