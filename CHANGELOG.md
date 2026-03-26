@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-26
+
+### Added
+
+- **Narrative Engine**: Template-based human-readable explanations with basic (1 sentence) and advanced (paragraph) levels, EN/IT language support, confidence classification (high/moderate/low), and missing data warnings ([#50](https://github.com/blackms/ExplainableEngine/pull/50))
+- **Narrative Endpoint**: `GET /api/v1/explain/{id}/narrative?level=basic|advanced&lang=en|it` ([#50](https://github.com/blackms/ExplainableEngine/pull/50))
+- **Structured JSON Logging**: Request logging middleware with timestamp, method, path, status, duration, request_id; configurable via `LOG_LEVEL` env var ([#50](https://github.com/blackms/ExplainableEngine/pull/50))
+- **CORS Middleware**: Configurable cross-origin support via `CORS_ORIGINS` env var ([#50](https://github.com/blackms/ExplainableEngine/pull/50))
+- **Docker Support**: Multi-stage Dockerfile + docker-compose.yml with SQLite persistence volume ([#50](https://github.com/blackms/ExplainableEngine/pull/50))
+- **Enhanced Health**: `/health` now returns uptime and version 0.4.0 ([#50](https://github.com/blackms/ExplainableEngine/pull/50))
+
+### Changed
+
+- **README**: Complete rewrite with all 6 API endpoints, curl examples, environment variables, architecture overview ([#50](https://github.com/blackms/ExplainableEngine/pull/50))
+
+### User Stories Completed
+
+- US-010: Human explanation (Natural Language Layer)
+
 ## [0.3.0] - 2026-03-26
 
 ### Added
@@ -65,6 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - US-008: Submit explanation request (POST /explain)
 - US-009: Retrieve explanation (GET /explain/{id})
 
+[0.4.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.4.0
 [0.3.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.3.0
 [0.2.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.2.0
 [0.1.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.1.0
