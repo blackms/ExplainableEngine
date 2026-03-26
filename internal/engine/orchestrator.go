@@ -87,7 +87,10 @@ func (o *Orchestrator) Explain(req models.ExplainRequest) (*models.ExplainRespon
 	hashBytes, _ := json.Marshal(hashInput)
 	hash := fmt.Sprintf("%x", sha256.Sum256(hashBytes))
 
-	// 11. Assemble response.
+	// 11. Store original request for what-if analysis.
+	reqCopy := req
+
+	// 12. Assemble response.
 	return &models.ExplainResponse{
 		ID:               newUUID(),
 		Target:           req.Target,
@@ -105,6 +108,7 @@ func (o *Orchestrator) Explain(req models.ExplainRequest) (*models.ExplainRespon
 			DeterministicHash: hash,
 			ComputationType:   "weighted_sum",
 		},
+		OriginalRequest: &reqCopy,
 	}, nil
 }
 

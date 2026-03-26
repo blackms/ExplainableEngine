@@ -87,4 +87,5 @@ type ExplainResponse struct {
 	DependencyTree   *DependencyTree   `json:"dependency_tree,omitempty"`
 	ConfidenceDetail *ConfidenceDetail `json:"confidence_detail,omitempty"`
 	Metadata         ExplainMetadata   `json:"metadata"`
+	OriginalRequest  *ExplainRequest   `json:"original_request,omitempty"`
 }

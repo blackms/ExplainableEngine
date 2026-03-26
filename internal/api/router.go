@@ -15,11 +15,16 @@ import (
 // NewRouter creates the HTTP router with all routes and middleware.
 func NewRouter(store storage.ExplanationStore, orch engine.OrchestratorInterface) http.Handler {
 	handler := &ExplainHandler{orchestrator: orch, store: store}
+	graphHandler := &GraphHandler{store: store}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
 	mux.HandleFunc("POST /api/v1/explain", handler.Create)
+	mux.HandleFunc("GET /api/v1/explain/{id}/graph", graphHandler.Export)
 	mux.HandleFunc("GET /api/v1/explain/{id}", handler.Get)
+
+	whatIfHandler := &WhatIfHandler{store: store, orchestrator: orch}
+	mux.HandleFunc("POST /api/v1/explain/{id}/what-if", whatIfHandler.Analyze)
 
 	return requestIDMiddleware(timingMiddleware(recoveryMiddleware(mux)))
 }
