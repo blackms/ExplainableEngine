@@ -48,8 +48,8 @@ export function FilterPanel({ filters, onChange, total }: FilterPanelProps) {
     filters.max_confidence ?? 1,
   ];
 
-  const handleConfidenceChange = (value: number | number[]) => {
-    const values = value as number[];
+  const handleConfidenceChange = (value: number | readonly number[]) => {
+    const values = value as readonly number[];
     onChange({
       ...filters,
       min_confidence: values[0] === 0 ? undefined : values[0],
