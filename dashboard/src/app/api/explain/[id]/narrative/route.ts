@@ -13,7 +13,7 @@ export async function GET(
   const lang = request.nextUrl.searchParams.get('lang') || 'en';
 
   const res = await fetch(
-    `${BACKEND_URL}/explain/${id}/narrative?level=${level}&lang=${lang}`,
+    `${BACKEND_URL}/api/v1/explain/${id}/narrative?level=${level}&lang=${lang}`,
     { headers: { 'Content-Type': 'application/json' } }
   );
 

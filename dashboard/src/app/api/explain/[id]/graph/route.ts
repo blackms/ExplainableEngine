@@ -12,7 +12,7 @@ export async function GET(
   const format = request.nextUrl.searchParams.get('format') || 'json';
 
   const res = await fetch(
-    `${BACKEND_URL}/explain/${id}/graph?format=${format}`,
+    `${BACKEND_URL}/api/v1/explain/${id}/graph?format=${format}`,
     { headers: { 'Content-Type': 'application/json' } }
   );
 

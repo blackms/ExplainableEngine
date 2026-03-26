@@ -11,7 +11,7 @@ export async function POST(
   const { id } = await params;
   const body = await request.json();
 
-  const res = await fetch(`${BACKEND_URL}/explain/${id}/what-if`, {
+  const res = await fetch(`${BACKEND_URL}/api/v1/explain/${id}/what-if`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
