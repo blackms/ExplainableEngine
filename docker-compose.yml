@@ -1,0 +1,15 @@
+services:
+  engine:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - STORAGE_BACKEND=sqlite
+      - SQLITE_PATH=/data/explanations.db
+      - LOG_LEVEL=INFO
+      - CORS_ORIGINS=*
+    volumes:
+      - engine-data:/data
+
+volumes:
+  engine-data:
