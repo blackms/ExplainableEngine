@@ -1,183 +1,82 @@
 'use client';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  TrendingUp,
-  Search,
-  Newspaper,
-  ArrowUpRight,
-  ArrowDownRight,
-  ArrowRight,
-  AlertCircle,
-  RefreshCw,
-} from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAIPMarketMood } from '@/lib/api/hooks';
-import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const POPULAR_TICKERS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'JPM'];
 
-function trendIndicator(trend: number) {
-  if (trend > 0.01)
-    return {
-      icon: ArrowUpRight,
-      color: 'text-emerald-500',
-      label: 'rising',
-    };
-  if (trend < -0.01)
-    return {
-      icon: ArrowDownRight,
-      color: 'text-rose-500',
-      label: 'declining',
-    };
-  return { icon: ArrowRight, color: 'text-muted-foreground', label: 'flat' };
-}
-
-function formatSentiment(value: number) {
-  return (value >= 0 ? '+' : '') + value.toFixed(3);
-}
-
 export default function AIPPage() {
+  const [ticker, setTicker] = useState('');
   const router = useRouter();
-  const [tickerInput, setTickerInput] = useState('');
-  const {
-    data: moodData,
-    isLoading: moodLoading,
-    error: moodError,
-    refetch: refetchMood,
-  } = useAIPMarketMood();
+  const { data: mood, isLoading: moodLoading, error: moodError } = useAIPMarketMood();
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    const ticker = tickerInput.trim().toUpperCase();
-    if (ticker) {
-      router.push(`/aip/${ticker}`);
-    }
-  }
-
-  const mood = moodData?.market_mood;
-  const trend = mood ? trendIndicator(mood.overall_trend) : null;
-  const TrendIcon = trend?.icon ?? ArrowRight;
+  const handleExplain = () => {
+    if (ticker.trim()) router.push(`/aip/${ticker.trim().toUpperCase()}`);
+  };
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div>
-        <div className="flex items-center gap-2">
-          <TrendingUp className="size-6 text-primary" />
-          <h1 className="text-3xl font-bold tracking-tight">
-            AIP Sentiment Intelligence
-          </h1>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          AI-powered sentiment analysis for financial tickers, backed by
-          explainable breakdowns.
-        </p>
+        <h1 className="text-2xl font-bold">AIP Sentiment Intelligence</h1>
+        <p className="text-sm text-muted-foreground">Explain sentiment scores powered by AIP</p>
       </div>
 
-      {/* Ticker search */}
-      <form onSubmit={handleSearch} className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={tickerInput}
-            onChange={(e) => setTickerInput(e.target.value)}
-            placeholder="Search ticker (e.g. NVDA)"
-            className="h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          />
-        </div>
-        <button
-          type="submit"
-          className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
-        >
-          Explain
-        </button>
-      </form>
-
-      {/* Market Mood */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Newspaper className="size-5" />
-            Market Mood
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {moodLoading ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-4">
-                <Skeleton className="h-8 w-28" />
-                <Skeleton className="h-6 w-36" />
-              </div>
-              <Skeleton className="h-5 w-40" />
-            </div>
-          ) : moodError ? (
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <AlertCircle className="size-5 text-rose-500 shrink-0" />
-              <p>Could not fetch market mood data.</p>
-              <button
-                type="button"
-                onClick={() => refetchMood()}
-                className="inline-flex items-center gap-1 text-primary hover:underline"
-              >
-                <RefreshCw className="size-3.5" />
-                Retry
-              </button>
-            </div>
-          ) : mood ? (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-baseline gap-4">
-                <span className="text-2xl font-bold tabular-nums">
-                  Overall: {formatSentiment(mood.overall_sentiment)}
-                </span>
-                <span
-                  className={`flex items-center gap-1 text-sm font-medium ${trend?.color}`}
-                >
-                  <TrendIcon className="size-4" />
-                  Trend: {formatSentiment(mood.overall_trend)} ({trend?.label})
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {mood.total_articles.toLocaleString()} articles analyzed
-              </p>
-              {moodData?.explanation?.id && (
-                <Link
-                  href={`/explain/${moodData.explanation.id}`}
-                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                >
-                  View Full Breakdown
-                  <ArrowRight className="size-3.5" />
-                </Link>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              AIP integration requires an API key. Contact your administrator.
-            </p>
-          )}
+        <CardContent className="p-4">
+          <form onSubmit={(e) => { e.preventDefault(); handleExplain(); }} className="flex gap-2">
+            <Input
+              placeholder="Enter ticker (e.g. AAPL)"
+              value={ticker}
+              onChange={(e) => setTicker(e.target.value)}
+              className="max-w-xs uppercase"
+            />
+            <Button type="submit" disabled={!ticker.trim()}>Explain</Button>
+          </form>
         </CardContent>
       </Card>
 
-      {/* Quick Explains */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Market Mood</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {moodLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ) : moodError ? (
+            <p className="text-sm text-muted-foreground">Could not load market mood. AIP may not be configured.</p>
+          ) : mood ? (
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-3">
+                <span className="text-3xl font-bold tabular-nums">
+                  {mood.market_mood.overall_sentiment >= 0 ? '+' : ''}{mood.market_mood.overall_sentiment.toFixed(3)}
+                </span>
+                <span className={`text-sm ${mood.market_mood.overall_trend >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {mood.market_mood.overall_trend >= 0 ? '\u2191' : '\u2193'} {mood.market_mood.overall_trend.toFixed(3)}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">{mood.market_mood.total_articles.toLocaleString()} articles analyzed</p>
+              <Button variant="outline" size="sm" onClick={() => router.push(`/explain/${mood.explanation.id}`)}>
+                View Full Breakdown
+              </Button>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Quick Explains</h2>
+        <h2 className="text-lg font-semibold mb-3">Quick Explain</h2>
         <div className="flex flex-wrap gap-2">
-          {POPULAR_TICKERS.map((ticker) => (
-            <Link
-              key={ticker}
-              href={`/aip/${ticker}`}
-              className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-semibold transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              {ticker}
-            </Link>
+          {POPULAR_TICKERS.map(t => (
+            <Button key={t} variant="outline" size="sm" onClick={() => router.push(`/aip/${t}`)}>
+              {t}
+            </Button>
           ))}
         </div>
       </div>
