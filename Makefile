@@ -1,4 +1,4 @@
-.PHONY: build test lint run clean fmt
+.PHONY: build test lint run clean fmt docker-build docker-up docker-down
 
 build:
 	go build -o bin/server ./cmd/server
@@ -23,3 +23,12 @@ run:
 
 clean:
 	rm -rf bin/ coverage.out *.db
+
+docker-build:
+	docker build -t explainable-engine .
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down

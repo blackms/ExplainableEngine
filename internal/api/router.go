@@ -16,11 +16,13 @@ import (
 func NewRouter(store storage.ExplanationStore, orch engine.OrchestratorInterface) http.Handler {
 	handler := &ExplainHandler{orchestrator: orch, store: store}
 	graphHandler := &GraphHandler{store: store}
+	narrativeHandler := &NarrativeHandler{store: store}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
 	mux.HandleFunc("POST /api/v1/explain", handler.Create)
 	mux.HandleFunc("GET /api/v1/explain/{id}/graph", graphHandler.Export)
+	mux.HandleFunc("GET /api/v1/explain/{id}/narrative", narrativeHandler.Get)
 	mux.HandleFunc("GET /api/v1/explain/{id}", handler.Get)
 
 	whatIfHandler := &WhatIfHandler{store: store, orchestrator: orch}
@@ -29,10 +31,13 @@ func NewRouter(store storage.ExplanationStore, orch engine.OrchestratorInterface
 	return requestIDMiddleware(timingMiddleware(recoveryMiddleware(mux)))
 }
 
+var startTime = time.Now()
+
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"status":  "healthy",
-		"version": "0.1.0",
+		"version": "0.4.0",
+		"uptime":  time.Since(startTime).String(),
 	})
 }
 

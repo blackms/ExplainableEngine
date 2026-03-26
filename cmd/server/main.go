@@ -7,6 +7,7 @@ import (
 
 	"github.com/blackms/ExplainableEngine/internal/api"
 	"github.com/blackms/ExplainableEngine/internal/engine"
+	"github.com/blackms/ExplainableEngine/internal/middleware"
 	"github.com/blackms/ExplainableEngine/internal/storage"
 )
 
@@ -26,6 +27,11 @@ func main() {
 		sqlitePath = "explanations.db"
 	}
 
+	corsOrigins := os.Getenv("CORS_ORIGINS")
+	if corsOrigins == "" {
+		corsOrigins = "*"
+	}
+
 	store, err := storage.NewStore(backend, sqlitePath)
 	if err != nil {
 		log.Fatalf("failed to create store: %v", err)
@@ -34,8 +40,14 @@ func main() {
 	orch := engine.NewOrchestrator()
 	router := api.NewRouter(store, orch)
 
+	// Wrap router with CORS and structured logging middleware.
+	// Order: CORS (outermost) -> Logging -> router (innermost with recovery/requestID/timing).
+	handler := middleware.CORSMiddleware(corsOrigins)(
+		middleware.LoggingMiddleware(router),
+	)
+
 	log.Printf("Explainable Engine starting on :%s (storage=%s)", port, backend)
-	if err := http.ListenAndServe(":"+port, router); err != nil {
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
 }
