@@ -100,3 +100,21 @@ export function useGenerateSummary(id: string | undefined) {
     mutationFn: (req: SummaryRequest) => api.generateSummary(id!, req),
   });
 }
+
+// AIP Sentiment hooks
+
+export function useAIPExplainTicker(ticker: string | undefined) {
+  return useQuery({
+    queryKey: ['aip-explain', ticker],
+    queryFn: () => api.explainTicker(ticker!),
+    enabled: !!ticker,
+  });
+}
+
+export function useAIPMarketMood() {
+  return useQuery({
+    queryKey: ['aip-market-mood'],
+    queryFn: () => api.explainMarketMood(),
+    refetchInterval: 60_000,
+  });
+}

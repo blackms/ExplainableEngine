@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/blackms/ExplainableEngine/internal/aip"
 	"github.com/blackms/ExplainableEngine/internal/api"
 	"github.com/blackms/ExplainableEngine/internal/engine"
 	"github.com/blackms/ExplainableEngine/internal/llm"
@@ -75,7 +76,18 @@ func main() {
 		log.Println("LLM service: template fallback (no ANTHROPIC_API_KEY)")
 	}
 
-	router := api.NewRouter(store, orch, api.WithLLMService(llmService))
+	// Initialize AIP client.
+	routerOpts := []api.RouterOption{api.WithLLMService(llmService)}
+	aipAPIKey := os.Getenv("AIP_API_KEY")
+	if aipAPIKey != "" {
+		aipClient := aip.NewClient(aipAPIKey)
+		routerOpts = append(routerOpts, api.WithAIPClient(aipClient))
+		log.Println("AIP integration: enabled")
+	} else {
+		log.Println("AIP integration: disabled (no AIP_API_KEY)")
+	}
+
+	router := api.NewRouter(store, orch, routerOpts...)
 
 	// Wrap router with CORS and structured logging middleware.
 	// Order: CORS (outermost) -> Logging -> router (innermost with recovery/requestID/timing).
