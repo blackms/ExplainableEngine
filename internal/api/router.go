@@ -23,6 +23,9 @@ func NewRouter(store storage.ExplanationStore, orch engine.OrchestratorInterface
 	mux.HandleFunc("GET /api/v1/explain/{id}/graph", graphHandler.Export)
 	mux.HandleFunc("GET /api/v1/explain/{id}", handler.Get)
 
+	whatIfHandler := &WhatIfHandler{store: store, orchestrator: orch}
+	mux.HandleFunc("POST /api/v1/explain/{id}/what-if", whatIfHandler.Analyze)
+
 	return requestIDMiddleware(timingMiddleware(recoveryMiddleware(mux)))
 }
 
