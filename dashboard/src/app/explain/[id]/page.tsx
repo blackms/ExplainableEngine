@@ -6,6 +6,7 @@ import { ConfidencePanel } from '@/components/explanation/ConfidencePanel';
 import { NarrativeViewer } from '@/components/explanation/NarrativeViewer';
 import { SensitivityQuickView } from '@/components/explanation/SensitivityQuickView';
 import { ExportPanel } from '@/components/explanation/ExportPanel';
+import { AIAssistantSection } from '@/components/llm/AIAssistantSection';
 
 export default async function ExplanationPage({
   params,
@@ -87,6 +88,9 @@ export default async function ExplanationPage({
           />
         </div>
       )}
+
+      {/* Row 5: AI Assistant */}
+      <AIAssistantSection explanationId={id} />
     </div>
   );
 }

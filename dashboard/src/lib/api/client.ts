@@ -1,12 +1,18 @@
 import type {
+  AskRequest,
+  AskResponse,
   ExplainRequest,
   ExplainResponse,
   GraphResponse,
+  LLMNarrativeRequest,
+  LLMNarrativeResponse,
   ListOptions,
   ListResult,
   Modification,
   NarrativeResult,
   SensitivityResult,
+  SummaryRequest,
+  SummaryResponse,
 } from './types';
 
 const API_BASE = '/api';
@@ -61,6 +67,24 @@ export const api = {
     const qs = params.toString();
     return fetchAPI<ListResult>(`/explain${qs ? `?${qs}` : ''}`);
   },
+
+  generateLLMNarrative: (id: string, req: LLMNarrativeRequest) =>
+    fetchAPI<LLMNarrativeResponse>(`/explain/${id}/narrative-llm`, {
+      method: 'POST',
+      body: JSON.stringify(req),
+    }),
+
+  askQuestion: (id: string, req: AskRequest) =>
+    fetchAPI<AskResponse>(`/explain/${id}/ask`, {
+      method: 'POST',
+      body: JSON.stringify(req),
+    }),
+
+  generateSummary: (id: string, req: SummaryRequest) =>
+    fetchAPI<SummaryResponse>(`/explain/${id}/summary`, {
+      method: 'POST',
+      body: JSON.stringify(req),
+    }),
 
   health: () =>
     fetchAPI<{ status: string; version: string; uptime: string }>('/health'),
