@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-03-26
+
+### Added
+
+- **GCP Deployment**: Full production deployment on Google Cloud Platform ([#66](https://github.com/blackms/ExplainableEngine/pull/66), [#67](https://github.com/blackms/ExplainableEngine/pull/67))
+  - Cloud Run v2 service with autoscaling (0-10 instances)
+  - Cloud SQL PostgreSQL 16 (private IP, automated backups, PITR)
+  - VPC with private networking and serverless VPC connector
+  - Secret Manager for database credentials
+  - Artifact Registry for container images
+- **PostgreSQL Storage Backend**: Production-grade persistence with pgx driver, connection pooling, and auto-migration ([#66](https://github.com/blackms/ExplainableEngine/pull/66))
+- **Database Migration System**: Embedded SQL migrations with schema versioning, auto-run on startup, rollback support ([#67](https://github.com/blackms/ExplainableEngine/pull/67))
+- **Terraform IaC**: Complete infrastructure as code — VPC, Cloud SQL, Cloud Run, Secret Manager, IAM ([#66](https://github.com/blackms/ExplainableEngine/pull/66))
+- **Cloud Build Pipeline**: `cloudbuild.yaml` — test, build, push, deploy in one pipeline ([#67](https://github.com/blackms/ExplainableEngine/pull/67))
+- **GitHub Actions CI/CD**: PR testing (`ci.yml`) and automated deployment (`deploy.yml`) with Workload Identity Federation ([#67](https://github.com/blackms/ExplainableEngine/pull/67))
+- **Production Smoke Tests**: `scripts/smoke-test.sh` — 6-endpoint validation script ([#67](https://github.com/blackms/ExplainableEngine/pull/67))
+
+### Production URL
+
+`https://explainable-engine-516741092583.europe-west1.run.app`
+
 ## [0.4.0] - 2026-03-26
 
 ### Added
@@ -84,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - US-008: Submit explanation request (POST /explain)
 - US-009: Retrieve explanation (GET /explain/{id})
 
+[0.5.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.5.0
 [0.4.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.4.0
 [0.3.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.3.0
 [0.2.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.2.0
