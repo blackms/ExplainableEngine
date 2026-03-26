@@ -8,6 +8,7 @@ import (
 
 	"github.com/blackms/ExplainableEngine/internal/api"
 	"github.com/blackms/ExplainableEngine/internal/engine"
+	"github.com/blackms/ExplainableEngine/internal/llm"
 	"github.com/blackms/ExplainableEngine/internal/middleware"
 	"github.com/blackms/ExplainableEngine/internal/storage"
 	"github.com/blackms/ExplainableEngine/migrations"
@@ -56,7 +57,25 @@ func main() {
 	}
 
 	orch := engine.NewOrchestrator()
-	router := api.NewRouter(store, orch)
+
+	// Initialize LLM service.
+	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	var llmService llm.Service
+	if apiKey != "" {
+		svc, err := llm.NewClaudeService(apiKey)
+		if err != nil {
+			log.Printf("LLM service unavailable: %v", err)
+			llmService = llm.NewFallbackService()
+		} else {
+			llmService = svc
+			log.Println("LLM service: Claude API enabled")
+		}
+	} else {
+		llmService = llm.NewFallbackService()
+		log.Println("LLM service: template fallback (no ANTHROPIC_API_KEY)")
+	}
+
+	router := api.NewRouter(store, orch, api.WithLLMService(llmService))
 
 	// Wrap router with CORS and structured logging middleware.
 	// Order: CORS (outermost) -> Logging -> router (innermost with recovery/requestID/timing).
