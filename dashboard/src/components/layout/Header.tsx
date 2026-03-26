@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 import { UserMenu } from './UserMenu';
+import { ThemeToggle } from './ThemeToggle';
 
 const routeLabels: Record<string, string> = {
   '/': 'Home',
@@ -53,7 +54,10 @@ export function Header() {
           </span>
         ))}
       </nav>
-      <UserMenu />
+      <div className="flex items-center gap-3">
+        <ThemeToggle />
+        <UserMenu />
+      </div>
     </header>
   );
 }
