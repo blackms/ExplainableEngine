@@ -2,64 +2,50 @@
 
 interface ConfidenceGaugeProps {
   confidence: number;
-  size?: number;
+  size?: 'sm' | 'lg';
 }
 
-function getConfidenceColor(confidence: number): string {
-  if (confidence >= 0.8) return 'text-green-500';
-  if (confidence >= 0.5) return 'text-yellow-500';
-  return 'text-red-500';
+function confidenceColor(value: number): string {
+  if (value >= 0.8) return '#10b981'; // emerald-500
+  if (value >= 0.5) return '#f59e0b'; // amber-500
+  return '#f43f5e'; // rose-500
 }
 
-function getConfidenceStroke(confidence: number): string {
-  if (confidence >= 0.8) return 'stroke-green-500';
-  if (confidence >= 0.5) return 'stroke-yellow-500';
-  return 'stroke-red-500';
+function confidenceLabel(value: number): string {
+  if (value >= 0.8) return 'High confidence';
+  if (value >= 0.5) return 'Moderate — review recommended';
+  return 'Low — action required';
 }
 
-function getConfidenceTrack(confidence: number): string {
-  if (confidence >= 0.8) return 'stroke-green-500/20';
-  if (confidence >= 0.5) return 'stroke-yellow-500/20';
-  return 'stroke-red-500/20';
-}
+export function ConfidenceGauge({ confidence, size = 'lg' }: ConfidenceGaugeProps) {
+  const pct = (confidence * 100).toFixed(1);
+  const color = confidenceColor(confidence);
+  const label = confidenceLabel(confidence);
 
-export function ConfidenceGauge({ confidence, size = 80 }: ConfidenceGaugeProps) {
-  const radius = 34;
-  const circumference = 2 * Math.PI * radius;
-  const filled = circumference * confidence;
-  const percentage = (confidence * 100).toFixed(1);
+  if (size === 'sm') {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-2 flex-1 rounded-full bg-secondary">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${pct}%`, backgroundColor: color }}
+          />
+        </div>
+        <span className="text-xs text-muted-foreground shrink-0">{pct}%</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg
-        viewBox="0 0 80 80"
-        width={size}
-        height={size}
-        className="-rotate-90"
-      >
-        <circle
-          cx="40"
-          cy="40"
-          r={radius}
-          fill="none"
-          strokeWidth="6"
-          className={getConfidenceTrack(confidence)}
+    <div className="space-y-1">
+      <span className="text-4xl font-bold tabular-nums">{pct}%</span>
+      <div className="h-3 w-full rounded-full bg-secondary">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, backgroundColor: color }}
         />
-        <circle
-          cx="40"
-          cy="40"
-          r={radius}
-          fill="none"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference - filled}
-          className={`${getConfidenceStroke(confidence)} transition-all duration-500`}
-        />
-      </svg>
-      <span className={`absolute text-sm font-semibold ${getConfidenceColor(confidence)}`}>
-        {percentage}%
-      </span>
+      </div>
+      <span className="text-sm text-muted-foreground">{label}</span>
     </div>
   );
 }
