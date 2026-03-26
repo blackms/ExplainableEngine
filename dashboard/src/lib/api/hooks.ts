@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { ExplainRequest, Modification } from './types';
+import type { ExplainRequest, ListOptions, Modification } from './types';
 
 export function useExplanation(id: string | undefined) {
   return useQuery({
@@ -46,6 +46,13 @@ export function useWhatIf(id: string | undefined) {
   return useMutation({
     mutationFn: (modifications: Modification[]) =>
       api.whatIf(id!, modifications),
+  });
+}
+
+export function useExplanationList(opts?: ListOptions) {
+  return useQuery({
+    queryKey: ['explanations', opts],
+    queryFn: () => api.listExplanations(opts),
   });
 }
 
