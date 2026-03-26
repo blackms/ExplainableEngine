@@ -64,4 +64,7 @@ export const api = {
 
   health: () =>
     fetchAPI<{ status: string; version: string; uptime: string }>('/health'),
+
+  stats: () =>
+    fetchAPI<{ total_explanations: number; status: string }>('/stats'),
 };
