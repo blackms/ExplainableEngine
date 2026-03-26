@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/blackms/ExplainableEngine/internal/aip"
 	"github.com/blackms/ExplainableEngine/internal/engine"
 	"github.com/blackms/ExplainableEngine/internal/llm"
 	"github.com/blackms/ExplainableEngine/internal/storage"
@@ -46,12 +47,21 @@ func NewRouter(store storage.ExplanationStore, orch engine.OrchestratorInterface
 	mux.HandleFunc("POST /api/v1/explain/{id}/ask", llmHandler.AskQuestion)
 	mux.HandleFunc("POST /api/v1/explain/{id}/summary", llmHandler.GenerateSummary)
 
+	// AIP-powered endpoints (enabled when an AIP API key is configured).
+	if cfg.aipClient != nil {
+		aipHandler := &AIPHandler{aipClient: cfg.aipClient, orchestrator: orch, store: store}
+		mux.HandleFunc("GET /api/v1/aip/explain/market-mood", aipHandler.ExplainMarketMood)
+		mux.HandleFunc("GET /api/v1/aip/explain/{ticker}", aipHandler.ExplainTicker)
+		mux.HandleFunc("POST /api/v1/aip/explain/bulk", aipHandler.ExplainBulk)
+	}
+
 	return requestIDMiddleware(timingMiddleware(recoveryMiddleware(mux)))
 }
 
 // routerConfig holds optional configuration for the router.
 type routerConfig struct {
 	llmService llm.Service
+	aipClient  aip.AIPService
 }
 
 // RouterOption configures the router.
@@ -61,6 +71,13 @@ type RouterOption func(*routerConfig)
 func WithLLMService(svc llm.Service) RouterOption {
 	return func(cfg *routerConfig) {
 		cfg.llmService = svc
+	}
+}
+
+// WithAIPClient sets the AIP client for the router, enabling AIP-powered endpoints.
+func WithAIPClient(client aip.AIPService) RouterOption {
+	return func(cfg *routerConfig) {
+		cfg.aipClient = client
 	}
 }
 
