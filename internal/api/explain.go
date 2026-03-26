@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/blackms/ExplainableEngine/internal/engine"
 	"github.com/blackms/ExplainableEngine/internal/models"
@@ -66,4 +67,70 @@ func (h *ExplainHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// List handles GET /api/v1/explain — returns a paginated, filtered list of explanations.
+func (h *ExplainHandler) List(w http.ResponseWriter, r *http.Request) {
+	opts := storage.ListOptions{
+		Limit: 20,
+	}
+
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 {
+			writeError(w, http.StatusBadRequest, "invalid limit parameter")
+			return
+		}
+		opts.Limit = n
+	}
+	if v := r.URL.Query().Get("cursor"); v != "" {
+		opts.Cursor = v
+	}
+	if v := r.URL.Query().Get("target"); v != "" {
+		opts.Target = v
+	}
+	if v := r.URL.Query().Get("min_confidence"); v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid min_confidence parameter")
+			return
+		}
+		opts.MinConfidence = f
+	}
+	if v := r.URL.Query().Get("max_confidence"); v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid max_confidence parameter")
+			return
+		}
+		opts.MaxConfidence = f
+	}
+	if v := r.URL.Query().Get("from"); v != "" {
+		opts.FromTime = v
+	}
+	if v := r.URL.Query().Get("to"); v != "" {
+		opts.ToTime = v
+	}
+
+	result, err := h.store.List(opts)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list explanations: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+// Stats handles GET /api/v1/stats — returns total explanation count.
+func (h *ExplainHandler) Stats(w http.ResponseWriter, r *http.Request) {
+	count, err := h.store.Count()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to count explanations: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"total_explanations": count,
+		"status":             "ok",
+	})
 }

@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
+import { UserMenu } from './UserMenu';
 
 const routeLabels: Record<string, string> = {
   '/': 'Home',
@@ -33,7 +34,7 @@ export function Header() {
   const breadcrumbs = getBreadcrumbs(pathname);
 
   return (
-    <header className="flex h-14 shrink-0 items-center border-b border-border bg-background px-4 pl-14 md:pl-4">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-4 pl-14 md:pl-4">
       <nav className="flex items-center gap-1.5 text-sm">
         {breadcrumbs.map((crumb, i) => (
           <span key={crumb.href} className="flex items-center gap-1.5">
@@ -52,6 +53,7 @@ export function Header() {
           </span>
         ))}
       </nav>
+      <UserMenu />
     </header>
   );
 }

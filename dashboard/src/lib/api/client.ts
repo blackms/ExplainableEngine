@@ -2,6 +2,8 @@ import type {
   ExplainRequest,
   ExplainResponse,
   GraphResponse,
+  ListOptions,
+  ListResult,
   Modification,
   NarrativeResult,
   SensitivityResult,
@@ -44,6 +46,21 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ modifications }),
     }),
+
+  listExplanations: (opts?: ListOptions) => {
+    const params = new URLSearchParams();
+    if (opts?.cursor) params.set('cursor', opts.cursor);
+    if (opts?.limit) params.set('limit', String(opts.limit));
+    if (opts?.target) params.set('target', opts.target);
+    if (opts?.min_confidence !== undefined)
+      params.set('min_confidence', String(opts.min_confidence));
+    if (opts?.max_confidence !== undefined)
+      params.set('max_confidence', String(opts.max_confidence));
+    if (opts?.from) params.set('from', opts.from);
+    if (opts?.to) params.set('to', opts.to);
+    const qs = params.toString();
+    return fetchAPI<ListResult>(`/explain${qs ? `?${qs}` : ''}`);
+  },
 
   health: () =>
     fetchAPI<{ status: string; version: string; uptime: string }>('/health'),

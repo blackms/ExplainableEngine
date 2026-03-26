@@ -4,6 +4,7 @@ import { BreakdownChart } from '@/components/explanation/BreakdownChart';
 import { DriverRanking } from '@/components/explanation/DriverRanking';
 import { ConfidencePanel } from '@/components/explanation/ConfidencePanel';
 import { NarrativeViewer } from '@/components/explanation/NarrativeViewer';
+import { SensitivityQuickView } from '@/components/explanation/SensitivityQuickView';
 
 export default async function ExplanationPage({
   params,
@@ -72,6 +73,16 @@ export default async function ExplanationPage({
         />
         <NarrativeViewer explanationId={id} />
       </div>
+
+      {/* Row 4: Sensitivity Quick View */}
+      {explanation.top_drivers && explanation.top_drivers.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SensitivityQuickView
+            drivers={explanation.top_drivers}
+            explanationId={id}
+          />
+        </div>
+      )}
     </div>
   );
 }

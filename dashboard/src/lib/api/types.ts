@@ -106,6 +106,24 @@ export interface ExplainResponse {
   original_request?: ExplainRequest;
 }
 
+// List / Audit
+
+export interface ListOptions {
+  cursor?: string;
+  limit?: number;
+  target?: string;
+  min_confidence?: number;
+  max_confidence?: number;
+  from?: string;
+  to?: string;
+}
+
+export interface ListResult {
+  items: ExplainResponse[];
+  next_cursor?: string;
+  total: number;
+}
+
 // Narrative
 
 export interface NarrativeResult {

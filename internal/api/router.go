@@ -20,6 +20,8 @@ func NewRouter(store storage.ExplanationStore, orch engine.OrchestratorInterface
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("GET /api/v1/stats", handler.Stats)
+	mux.HandleFunc("GET /api/v1/explain", handler.List)
 	mux.HandleFunc("POST /api/v1/explain", handler.Create)
 	mux.HandleFunc("GET /api/v1/explain/{id}/graph", graphHandler.Export)
 	mux.HandleFunc("GET /api/v1/explain/{id}/narrative", narrativeHandler.Get)
