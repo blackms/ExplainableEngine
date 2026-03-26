@@ -51,10 +51,15 @@ func NewClient(apiKey string) *Client {
 func (c *Client) GetSentiment(ctx context.Context, ticker string) (*InstrumentSentiment, error) {
 	url := fmt.Sprintf("%s/api/v1/external/sentiment/instruments/%s", c.baseURL, ticker)
 
-	var result InstrumentSentiment
-	if err := c.doGet(ctx, url, &result); err != nil {
+	var envelope struct {
+		Data struct {
+			Instrument InstrumentSentiment `json:"instrument"`
+		} `json:"data"`
+	}
+	if err := c.doGet(ctx, url, &envelope); err != nil {
 		return nil, fmt.Errorf("fetching sentiment for %s: %w", ticker, err)
 	}
+	result := envelope.Data.Instrument
 	return &result, nil
 }
 
@@ -70,44 +75,56 @@ func (c *Client) GetBulkSentiment(ctx context.Context, tickers []string) ([]Inst
 	url := fmt.Sprintf("%s/api/v1/external/sentiment/instruments/bulk", c.baseURL)
 	body := BulkRequest{Tickers: tickers}
 
-	var result []InstrumentSentiment
-	if err := c.doPost(ctx, url, body, &result); err != nil {
+	var envelope struct {
+		Data struct {
+			Instruments []InstrumentSentiment `json:"instruments"`
+		} `json:"data"`
+	}
+	if err := c.doPost(ctx, url, body, &envelope); err != nil {
 		return nil, fmt.Errorf("fetching bulk sentiment: %w", err)
 	}
-	return result, nil
+	return envelope.Data.Instruments, nil
 }
 
 // GetMarketMood fetches the overall market mood and per-sector breakdown.
 func (c *Client) GetMarketMood(ctx context.Context) (*MarketMood, error) {
 	url := fmt.Sprintf("%s/api/v1/external/sentiment/market-mood", c.baseURL)
 
-	var result MarketMood
-	if err := c.doGet(ctx, url, &result); err != nil {
+	var envelope struct {
+		Data MarketMood `json:"data"`
+	}
+	if err := c.doGet(ctx, url, &envelope); err != nil {
 		return nil, fmt.Errorf("fetching market mood: %w", err)
 	}
-	return &result, nil
+	return &envelope.Data, nil
 }
 
 // GetHeadlines fetches news headlines for a single instrument.
 func (c *Client) GetHeadlines(ctx context.Context, ticker string) ([]Headline, error) {
 	url := fmt.Sprintf("%s/api/v1/external/sentiment/instruments/%s/headlines", c.baseURL, ticker)
 
-	var result []Headline
-	if err := c.doGet(ctx, url, &result); err != nil {
+	var envelope struct {
+		Data struct {
+			Headlines []Headline `json:"headlines"`
+		} `json:"data"`
+	}
+	if err := c.doGet(ctx, url, &envelope); err != nil {
 		return nil, fmt.Errorf("fetching headlines for %s: %w", ticker, err)
 	}
-	return result, nil
+	return envelope.Data.Headlines, nil
 }
 
 // GetHistory fetches sentiment history for a single instrument.
 func (c *Client) GetHistory(ctx context.Context, ticker string) (*SentimentHistory, error) {
 	url := fmt.Sprintf("%s/api/v1/external/sentiment/instruments/%s/history", c.baseURL, ticker)
 
-	var result SentimentHistory
-	if err := c.doGet(ctx, url, &result); err != nil {
+	var envelope struct {
+		Data SentimentHistory `json:"data"`
+	}
+	if err := c.doGet(ctx, url, &envelope); err != nil {
 		return nil, fmt.Errorf("fetching history for %s: %w", ticker, err)
 	}
-	return &result, nil
+	return &envelope.Data, nil
 }
 
 // doGet performs a GET request with the API key header and decodes the response.
