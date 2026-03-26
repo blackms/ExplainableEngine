@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-03-26
+
+### Added — Dashboard (Sprints 8-12)
+
+- **Explanation Explorer** (Sprint 8): Summary card with confidence gauge, interactive breakdown chart with drill-down, driver ranking, detail page ([#95](https://github.com/blackms/ExplainableEngine/pull/95))
+- **Dependency Graph** (Sprint 9): Interactive DAG with React Flow + dagre layout, custom colored nodes, zoom/pan/minimap, full-screen view ([#96](https://github.com/blackms/ExplainableEngine/pull/96))
+- **What-if Simulator** (Sprint 9): Per-component sliders with debounced API calls, side-by-side comparison, diff table, sensitivity ranking ([#96](https://github.com/blackms/ExplainableEngine/pull/96))
+- **Narrative Viewer** (Sprint 9): Basic/advanced toggle, EN/IT language support, copy-to-clipboard ([#96](https://github.com/blackms/ExplainableEngine/pull/96))
+- **Confidence Panel** (Sprint 9): Per-node confidence bars, missing data impact warnings ([#96](https://github.com/blackms/ExplainableEngine/pull/96))
+- **Audit Trail** (Sprint 10): Paginated table, search/filter (target, confidence range, dates), cursor-based pagination ([#97](https://github.com/blackms/ExplainableEngine/pull/97))
+- **Authentication** (Sprint 10): NextAuth.js v5 with Google OAuth, login page, session management, middleware ([#97](https://github.com/blackms/ExplainableEngine/pull/97))
+- **List API Endpoint** (Sprint 10): `GET /api/v1/explain` with pagination, filters; `GET /api/v1/stats` ([#97](https://github.com/blackms/ExplainableEngine/pull/97))
+- **PDF/CSV Export** (Sprint 11): Single explanation PDF report, filtered audit list CSV download ([#98](https://github.com/blackms/ExplainableEngine/pull/98))
+- **Live Monitoring** (Sprint 11): 10s polling feed, anomaly alerts (low confidence, high missing), summary statistics dashboard ([#98](https://github.com/blackms/ExplainableEngine/pull/98))
+- **Scenario Manager** (Sprint 11): Save what-if scenarios to localStorage, load into simulator, compare up to 3 side-by-side ([#98](https://github.com/blackms/ExplainableEngine/pull/98))
+- **API Playground** (Sprint 12): Interactive explorer for all 6 endpoints, JSON editor, response viewer with timing ([#99](https://github.com/blackms/ExplainableEngine/pull/99))
+- **Code Generator** (Sprint 12): curl/Python/Go/JavaScript snippets, auto-update, copy-to-clipboard ([#99](https://github.com/blackms/ExplainableEngine/pull/99))
+- **API Key Management** (Sprint 12): Generate/revoke keys, one-time display, masked listing ([#99](https://github.com/blackms/ExplainableEngine/pull/99))
+- **User Preferences** (Sprint 12): Theme (light/dark/auto), default language, narrative level ([#99](https://github.com/blackms/ExplainableEngine/pull/99))
+
+### All 21 Dashboard User Stories Complete
+
+US-101 through US-603 across 6 epics: Explorer, What-if, Audit, Monitoring, Playground, Settings.
+
 ## [0.5.0] - 2026-03-26
 
 ### Added
@@ -105,6 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - US-008: Submit explanation request (POST /explain)
 - US-009: Retrieve explanation (GET /explain/{id})
 
+[1.0.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v1.0.0
 [0.5.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.5.0
 [0.4.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.4.0
 [0.3.0]: https://github.com/blackms/ExplainableEngine/releases/tag/v0.3.0
