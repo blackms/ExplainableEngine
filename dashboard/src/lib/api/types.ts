@@ -231,9 +231,16 @@ export interface AIPExplainResponse {
 
 export interface AIPMarketMoodResponse {
   explanation: ExplainResponse;
-  market_mood: {
+  aip_data: {
     overall_sentiment: number;
     overall_trend: number;
     total_articles: number;
+    sectors: Array<{
+      sector: string;
+      average_sentiment: number;
+      article_count: number;
+      instrument_count: number;
+      trend: number;
+    }>;
   };
 }

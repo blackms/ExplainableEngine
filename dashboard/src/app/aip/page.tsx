@@ -55,13 +55,13 @@ export default function AIPPage() {
             <div className="space-y-2">
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-bold tabular-nums">
-                  {mood.market_mood.overall_sentiment >= 0 ? '+' : ''}{mood.market_mood.overall_sentiment.toFixed(3)}
+                  {mood.aip_data.overall_sentiment >= 0 ? '+' : ''}{mood.aip_data.overall_sentiment.toFixed(3)}
                 </span>
-                <span className={`text-sm ${mood.market_mood.overall_trend >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  {mood.market_mood.overall_trend >= 0 ? '\u2191' : '\u2193'} {mood.market_mood.overall_trend.toFixed(3)}
+                <span className={`text-sm ${mood.aip_data.overall_trend >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {mood.aip_data.overall_trend >= 0 ? '\u2191' : '\u2193'} {mood.aip_data.overall_trend.toFixed(3)}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">{mood.market_mood.total_articles.toLocaleString()} articles analyzed</p>
+              <p className="text-xs text-muted-foreground">{mood.aip_data.total_articles.toLocaleString()} articles analyzed</p>
               <Button variant="outline" size="sm" onClick={() => router.push(`/explain/${mood.explanation.id}`)}>
                 View Full Breakdown
               </Button>
